@@ -48,6 +48,12 @@ public class GameClient {
                         System.out.println("Spawned at: " + x + ", " + y);
                         break;
 
+                    case 2:
+
+                        char c = in.readChar();
+                        System.out.println("Pressed key: " + c);
+                        break;
+
                     default:
                         System.out.println("Unknown packet ID: " + packetId);
                         in.skipBytes(length - 1);
