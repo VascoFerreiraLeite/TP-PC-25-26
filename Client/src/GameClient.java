@@ -50,7 +50,7 @@ public class GameClient {
 
                     case 2:
 
-                        char c = in.readChar();
+                        int c = in.readByte();
                         System.out.println("Pressed key: " + c);
                         break;
 

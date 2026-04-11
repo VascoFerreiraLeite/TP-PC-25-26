@@ -29,7 +29,7 @@ handle_packet(1, Payload, Socket) ->
 
 handle_packet(2, Payload, Socket) ->
     io:format("Player pressed key: ~p~n", [Payload]),
-    gen_tcp:send(Socket, <<2:8, Payload:8>>);
+    gen_tcp:send(Socket, <<2:8, Payload/binary>>);
 
 handle_packet(ID, _Payload, _Socket) ->
     io:format("Received unknown packet ID: ~p~n", [ID]).
