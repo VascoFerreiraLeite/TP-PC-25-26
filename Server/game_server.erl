@@ -11,7 +11,6 @@ start(Port) ->
     accept_loop(LSock).
 
 accept_loop(LSock) ->
-
     {ok, ClientSocket} = gen_tcp:accept(LSock),
     spawn(fun() -> client_handler(ClientSocket) end),
     accept_loop(LSock).

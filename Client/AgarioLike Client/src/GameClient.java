@@ -64,4 +64,19 @@ public class GameClient {
             System.out.println("Disconnected from server.");
         }
     }
+
+    public void Key(int a, char key){
+        try{
+            out.writeShort(3);
+
+            out.writeByte(2);
+            out.writeByte(a);
+            out.writeByte(key);
+
+            out.flush();
+        }
+        catch (IOException e){
+            e.printStackTrace();
+        }
+    }
 }
