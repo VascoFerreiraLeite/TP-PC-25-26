@@ -49,9 +49,14 @@ public class GameClient {
                         break;
 
                     case 2:
+                        int action = in.readByte();
+                        int keyVal = in.readByte();
 
-                        int c = in.readByte();
-                        System.out.println("Pressed key: " + c);
+                        if (action == 1) {
+                            System.out.println("Server confirmou: Pressionaste a tecla " + (char)keyVal);
+                        } else {
+                            System.out.println("Server confirmou: Soltaste a tecla " + (char)keyVal);
+                        }
                         break;
 
                     default:

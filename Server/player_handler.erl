@@ -10,8 +10,8 @@ handle_packet(1, _Payload, Socket, State) ->
     State#{room => RoomPid}; 
 
 handle_packet(2, <<Action:8, Key:8>>, Socket, State = #{room := RoomPid}) ->
-    gen_server:cast(RoomPid, {key, self(), Action, Key}),
-    gen_tcp:send(Socket, <<2:8, Payload/binary>>),
+    gen_server:cast(RoomPid, {key_action, self(), Action, Key}),
+    %gen_tcp:send(Socket, <<2:8, Payload/binary>>),
     State;
 
 handle_packet(ID, _Payload, _Socket, State) ->
