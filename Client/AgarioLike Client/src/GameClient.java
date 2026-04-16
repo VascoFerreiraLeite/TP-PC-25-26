@@ -34,6 +34,18 @@ public class GameClient {
         }
     }
 
+    public void sendkey(int action, char key){
+        try {
+            out.writeShort(3);
+            out.writeByte(2);
+            out.writeByte(action);
+            out.writeByte(key);
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void listenFromServer() {
         try {
             while (true) {
@@ -49,9 +61,14 @@ public class GameClient {
                         break;
 
                     case 2:
-
-                        int c = in.readByte();
-                        System.out.println("Pressed key: " + c);
+                        int action=in.readByte();
+                        int keyValue=in.readByte();
+                        if (action==1){
+                            System.out.println("Pressed key: " + (char)keyValue);
+                        }
+                        else {
+                            System.out.println("Released key: " + (char)keyValue);
+                        }
                         break;
 
                     default:

@@ -5,7 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="90c40200-5f6c-40fd-87b1-9f05ace3af15" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameApp.java" beforeDir="false" afterPath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameApp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/player_handler.erl" beforeDir="false" afterPath="$PROJECT_DIR$/Server/player_handler.erl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/room.erl" beforeDir="false" afterPath="$PROJECT_DIR$/Server/room.erl" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,7 +61,7 @@
       <workItem from="1776180444881" duration="914000" />
       <workItem from="1776181762949" duration="1506000" />
       <workItem from="1776350951301" duration="531000" />
-      <workItem from="1776351488781" duration="1653000" />
+      <workItem from="1776351488781" duration="4139000" />
     </task>
     <servers />
   </component>
