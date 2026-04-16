@@ -32,14 +32,14 @@ public class GameApp extends PApplet{
     public void keyPressed(){
         if (!pressionadas.contains(key)){
             pressionadas.add(key);
-            client.Key(1,key);
+            client.sendkey(1,key);
         }
     }
 
     public void keyReleased(){
         if (pressionadas.contains(key)){
             pressionadas.remove(key);
-            client.Key(0,key);
+            client.sendkey(0,key);
         }
     }
 }
