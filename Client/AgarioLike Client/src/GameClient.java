@@ -1,10 +1,16 @@
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class GameClient {
     private Socket socket;
     private DataOutputStream out;
     private DataInputStream in;
+    private GameApp app; // Reference to Processing app to update coordinates
+
+    public GameClient(GameApp app) {
+        this.app = app;
+    }
 
     public void connect(String host, int port) {
         try {
@@ -13,33 +19,34 @@ public class GameClient {
             in = new DataInputStream(socket.getInputStream());
 
             new Thread(this::listenFromServer).start();
-
             System.out.println("Connected to Erlang server!");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void sendPacket(int id, byte[] payload) {
+    // Protocol: [0] + [Username Bytes]
+    public void sendLogin(String username) {
         try {
-            int totalLength = 1 + payload.length;
-            out.writeShort(totalLength);
+            byte[] nameBytes = username.getBytes(StandardCharsets.UTF_8);
+            byte[] packet = new byte[1 + nameBytes.length];
+            packet[0] = 0;
+            System.arraycopy(nameBytes, 0, packet, 1, nameBytes.length);
 
-            out.writeByte(id);
-
-            out.write(payload);
+            out.write(packet);
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void sendkey(int action, char key){
+    // Protocol: [1] [Left] [Right] [Forward]
+    public void sendMovement(int left, int right, int forward) {
         try {
-            out.writeShort(3);
-            out.writeByte(2);
-            out.writeByte(action);
-            out.writeByte(key);
+            out.writeByte(1);
+            out.writeByte(left);
+            out.writeByte(right);
+            out.writeByte(forward);
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -49,32 +56,19 @@ public class GameClient {
     private void listenFromServer() {
         try {
             while (true) {
-                int length = in.readUnsignedShort();
+                byte packetId = in.readByte();
 
-                int packetId = in.readByte();
+                if (packetId == 2) {
+                    // Protocol: [2] [X:Float] [Y:Float] [Angle:Float] [Mass:Float]
+                    float x = in.readFloat();
+                    float y = in.readFloat();
+                    float angle = in.readFloat();
+                    float mass = in.readFloat();
 
-                switch (packetId) {
-                    case 101:
-                        int x = in.readShort();
-                        int y = in.readShort();
-                        System.out.println("Spawned at: " + x + ", " + y);
-                        break;
-
-                    case 2:
-                        int action=in.readByte();
-                        int keyValue=in.readByte();
-                        if (action==1){
-                            System.out.println("Pressed key: " + (char)keyValue);
-                        }
-                        else {
-                            System.out.println("Released key: " + (char)keyValue);
-                        }
-                        break;
-
-                    default:
-                        System.out.println("Unknown packet ID: " + packetId);
-                        in.skipBytes(length - 1);
-                        break;
+                    // Tell the Processing app to update the screen!
+                    app.updatePlayerState(x, y, angle, mass);
+                } else {
+                    System.out.println("Unknown packet ID: " + packetId);
                 }
             }
         } catch (IOException e) {

@@ -93,6 +93,8 @@ try_start_match(State = #{queue := Q, active := Active}, NeededPlayers) ->
 cancel_timer(undefined) -> ok;
 cancel_timer(Timer) -> erlang:cancel_timer(Timer).
 
+
 start_game_room(Players) ->
     io:format(">>> SPANWING GAME ROOM WITH PLAYERS: ~p~n", [Players]),
+    {ok, _} = game_room:start_link(self(), Players),
     ok.

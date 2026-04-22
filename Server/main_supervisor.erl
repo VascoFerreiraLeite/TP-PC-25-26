@@ -7,11 +7,9 @@ start_link() ->
 
 init() ->
     process_flag(trap_exit, true),
-
-    io:format("~n======================================~n"),
+    
     io:format("Starting Game Server Supervisor...~n"),
-    io:format("======================================~n"),
-
+    
     {ok, AccountPid} = account_manager:start_link(),
     {ok, MatchmakerPid} = matchmaker:start_link(),
     {ok, ListenerPid} = tcp_listener:start_link(8080),
