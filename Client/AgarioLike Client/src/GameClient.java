@@ -6,7 +6,7 @@ public class GameClient {
     private Socket socket;
     private DataOutputStream out;
     private DataInputStream in;
-    private GameApp app; // Reference to Processing app to update coordinates
+    private GameApp app;
 
     public GameClient(GameApp app) {
         this.app = app;
@@ -25,25 +25,33 @@ public class GameClient {
         }
     }
 
-    // Protocol: [0] + [Username Bytes]
-    public void sendLogin(String username) {
+    // Handles Register (1), Login (2), and Cancel (3)
+    public void sendAuthAction(int actionId, String username, String password) {
         try {
-            byte[] nameBytes = username.getBytes(StandardCharsets.UTF_8);
-            byte[] packet = new byte[1 + nameBytes.length];
-            packet[0] = 0;
-            System.arraycopy(nameBytes, 0, packet, 1, nameBytes.length);
+            byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
+            byte[] passBytes = password.getBytes(StandardCharsets.UTF_8);
 
-            out.write(packet);
+            // Build the packet entirely in memory before sending to prevent TCP fragmentation
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+
+            dos.writeByte(actionId);
+            dos.writeShort(userBytes.length);
+            dos.write(userBytes);
+            dos.writeShort(passBytes.length);
+            dos.write(passBytes);
+
+            out.write(baos.toByteArray());
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // Protocol: [1] [Left] [Right] [Forward]
+    // Protocol: [4] [Left] [Right] [Forward]
     public void sendMovement(int left, int right, int forward) {
         try {
-            out.writeByte(1);
+            out.writeByte(4); // Changed to 4
             out.writeByte(left);
             out.writeByte(right);
             out.writeByte(forward);
@@ -58,15 +66,43 @@ public class GameClient {
             while (true) {
                 byte packetId = in.readByte();
 
-                if (packetId == 2) {
-                    // Protocol: [2] [X:Float] [Y:Float] [Angle:Float] [Mass:Float]
-                    float x = in.readFloat();
-                    float y = in.readFloat();
-                    float angle = in.readFloat();
-                    float mass = in.readFloat();
+                if (packetId == 16) {
+                    // 0x10 Auth Response
+                    byte status = in.readByte();
+                    short msgLen = in.readShort();
+                    byte[] msgBytes = new byte[msgLen];
+                    in.readFully(msgBytes); // Ensure we read the exact length of the string
 
-                    // Tell the Processing app to update the screen!
-                    app.updatePlayerState(x, y, angle, mass);
+                    String message = new String(msgBytes, StandardCharsets.UTF_8);
+                    System.out.println("[SERVER] " + (status == 1 ? "SUCCESS: " : "ERROR: ") + message);
+                } else if (packetId == 18) {
+                    // 0x12 Game Started Packet
+                    int myPlayerId = in.readInt();
+                    float mapWidth = in.readFloat();
+                    float mapHeight = in.readFloat();
+
+                    System.out.println("[SERVER] Game Started! My ID is: " + myPlayerId);
+                    System.out.println("[SERVER] Map Dimensions: " + mapWidth + "x" + mapHeight);
+                } else if (packetId == 19) {
+                    // 0x13 Game State Tick
+                    int numPlayers = in.readByte();
+
+                    app.clearPlayers(); // Clear the old frame
+
+                    for (int i = 0; i < numPlayers; i++) {
+                        int id = in.readInt();
+                        float x = in.readFloat();
+                        float y = in.readFloat();
+                        float angle = in.readFloat();
+                        float mass = in.readFloat();
+                        int score = in.readInt();
+
+                        app.updatePlayer(id, x, y, angle, mass, score);
+                    }
+
+                    short numObjects = in.readShort();
+                    // We will add the object loop here later when we make food!
+
                 } else {
                     System.out.println("Unknown packet ID: " + packetId);
                 }

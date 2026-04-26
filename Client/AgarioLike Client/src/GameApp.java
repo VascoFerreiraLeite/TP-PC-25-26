@@ -1,15 +1,25 @@
 import processing.core.PApplet;
 
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class GameApp extends PApplet {
 
     GameClient client;
     String username = "Player1";
 
-    // Player State
-    float playerX = 250;
-    float playerY = 250;
-    float playerAngle = 0;
-    float playerRadius = 20; // Calculated from mass
+    int myPlayerId = -1;
+
+    class PlayerData {
+        int id; float x, y, angle, radius;
+        public PlayerData(int id, float x, float y, float angle, float mass) {
+            this.id = id; this.x = x; this.y = y; this.angle = angle;
+            this.radius = (float)(Math.sqrt(mass / Math.PI)) * 10;
+        }
+    }
+
+    ConcurrentHashMap<Integer, PlayerData> players = new ConcurrentHashMap<>();
+
 
     // Input Flags
     int leftPressed = 0;
@@ -25,40 +35,57 @@ public class GameApp extends PApplet {
     }
 
     public void setup() {
-        client = new GameClient(this); // Pass reference to this app
+        client = new GameClient(this);
         client.connect("localhost", 8080);
-        client.sendLogin(username);
+
+        // Let's test the new Auth Protocol!
+        String myUser = "Player1";
+        String myPass = "secret123";
+
+        // 1. Try to register
+        client.sendAuthAction(1, myUser, myPass);
+
+        // 2. Try to log in and queue
+        client.sendAuthAction(2, myUser, myPass);
     }
 
-    // Called by the client thread when Erlang sends an update
-    public void updatePlayerState(float x, float y, float angle, float mass) {
-        this.playerX = x;
-        this.playerY = y;
-        this.playerAngle = angle;
-        // Area = mass -> Pi * r^2 = mass -> r = sqrt(mass/pi)
-        // Multiply by a scaling factor so it looks good on screen
-        this.playerRadius = (float) (Math.sqrt(mass / Math.PI)) * 10;
+    public void setMyPlayerId(int id) {
+        this.myPlayerId = id;
+    }
+
+    public void clearPlayers() {
+        players.clear();
+    }
+
+    public void updatePlayer(int id, float x, float y, float angle, float mass, int score) {
+        players.put(id, new PlayerData(id, x, y, angle, mass));
     }
 
     public void draw() {
         background(255, 255, 255);
 
-        // Draw the player
-        pushMatrix();
-        translate(playerX, playerY);
-        rotate(playerAngle);
+        // Loop through all players in the map
+        for (PlayerData p : players.values()) {
+            pushMatrix();
+            translate(p.x, p.y);
+            rotate(p.angle);
 
-        // Body (Black as per PDF)
-        fill(0);
-        stroke(0, 0, 255); // Blue border for own player
-        strokeWeight(3);
-        circle(0, 0, playerRadius * 2);
+            fill(0); // Black body
 
-        // Draw a line to show the direction the player is facing
-        stroke(255, 0, 0);
-        line(0, 0, playerRadius, 0);
+            // Draw Blue border for us, Red for enemies
+            if (p.id == myPlayerId) {
+                stroke(0, 0, 255);
+            } else {
+                stroke(255, 0, 0);
+            }
 
-        popMatrix();
+            strokeWeight(3);
+            circle(0, 0, p.radius * 2);
+
+            stroke(255, 0, 0); // Red direction line
+            line(0, 0, p.radius, 0);
+            popMatrix();
+        }
     }
 
     public void keyPressed() {

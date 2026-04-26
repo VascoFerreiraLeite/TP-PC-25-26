@@ -14,8 +14,11 @@ stop(Pid) ->
 init(MatchmakerPid, Players) ->
     io:format("Game Room started with ~p players!~n", [length(Players)]),
     
-    lists:foreach(fun({_Username, ClientPid}) -> 
-        ClientPid ! {joined_game, self()} 
+    MapWidth = 1000.0,
+    MapHeight = 1000.0,
+    
+    lists:foreach(fun({PlayerId, _Username, ClientPid}) -> 
+        ClientPid ! {game_started, self(), PlayerId, MapWidth, MapHeight} 
     end, Players),
 
     InitialState = setup_players(Players, #{}),
@@ -25,7 +28,6 @@ init(MatchmakerPid, Players) ->
     erlang:send_after(120000, self(), match_end),
 
     loop(MatchmakerPid, InitialState).
-
 loop(MatchmakerPid, State) ->
     receive
         {movement_input, ClientPid, Left, Right, Forward} ->
@@ -59,10 +61,12 @@ loop(MatchmakerPid, State) ->
     end.
 
 setup_players([], State) -> State;
-setup_players([{Username, ClientPid} | Rest], State) ->
+setup_players([{PlayerId, Username, ClientPid} | Rest], State) ->
     PlayerData = #{
+        id => PlayerId,           
         username => Username,
-        x => 0.0, y => 0.0, angle => 0.0, mass => 10.0,
+        x => 500.0, y => 500.0,   
+        angle => 0.0, mass => 10.0,
         inputs => #{left => 0, right => 0, forward => 0}
     },
     NewState = maps:put(ClientPid, PlayerData, State),
@@ -89,8 +93,36 @@ apply_dummy_physics(State) ->
         PlayerData#{x => NewX, angle => NewAngle}
     end, State).
 
+%% ====================================================================
+%% Game State Broadcasting (The 0x13 Packet)
+%% ====================================================================
+
+%% Broadcasts the pre-compiled binary packet to all clients
 broadcast_state(State) ->
-    maps:fold(fun(ClientPid, #{x := X, y := Y, angle := Angle, mass := Mass}, _Acc) ->
-        ClientPid ! {game_state_update, X, Y, Angle, Mass},
+    %% 1. Build the packet once
+    Packet = build_state_packet(State),
+    
+    %% 2. Send the exact same raw bytes to every connection process
+    maps:fold(fun(ClientPid, _PlayerData, _Acc) ->
+        ClientPid ! {send_raw_packet, Packet},
         ok
     end, ok, State).
+
+%% Packs the entire game state into our Custom Binary Protocol
+build_state_packet(State) ->
+    NumPlayers = maps:size(State),
+
+    %% Fold over the map to build the dynamic Players binary block
+    PlayersBin = maps:fold(fun(_ClientPid, #{id := Id, x := X, y := Y, angle := Angle, mass := Mass}, AccBin) ->
+        Score = 0, %% Placeholder until we implement eating/capturing
+        PlayerBin = <<Id:32/integer, X:32/float, Y:32/float, Angle:32/float, Mass:32/float, Score:32/integer>>,
+        <<AccBin/binary, PlayerBin/binary>>
+    end, <<>>, State),
+
+    %% We don't have food/poison yet, so NumObjects is 0
+    NumObjects = 0,
+    ObjectsBin = <<>>,
+
+    %% Combine everything into the final 0x13 (19) packet!
+    %% Protocol: [19] [NumPlayers] [PlayersBin...] [NumObjects] [ObjectsBin...]
+    <<19:8, NumPlayers:8, PlayersBin/binary, NumObjects:16/integer, ObjectsBin/binary>>.

@@ -95,6 +95,13 @@ cancel_timer(Timer) -> erlang:cancel_timer(Timer).
 
 
 start_game_room(Players) ->
-    io:format(">>> SPANWING GAME ROOM WITH PLAYERS: ~p~n", [Players]),
-    {ok, _} = game_room:start_link(self(), Players),
+    PlayersWithIds = assign_ids(1, Players),
+    io:format(">>> SPANWING GAME ROOM WITH PLAYERS: ~p~n", [PlayersWithIds]),
+    
+    {ok, _RoomPid} = game_room:start_link(self(), PlayersWithIds),
     ok.
+
+assign_ids(_Id, []) -> 
+    [];
+assign_ids(Id, [{Username, ClientPid} | Rest]) ->
+    [{Id, Username, ClientPid} | assign_ids(Id + 1, Rest)].
