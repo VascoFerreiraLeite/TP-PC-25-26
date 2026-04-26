@@ -62,10 +62,19 @@ loop(MatchmakerPid, State) ->
 
 setup_players([], State) -> State;
 setup_players([{PlayerId, Username, ClientPid} | Rest], State) ->
+    {StartX, StartY} = case PlayerId of
+        1 -> {100.0, 100.0};  
+        2 -> {900.0, 100.0};  
+        3 -> {100.0, 900.0};  
+        4 -> {900.0, 900.0};  
+        _ -> {500.0, 500.0}   
+    end,
+
     PlayerData = #{
-        id => PlayerId,           
+        id => PlayerId,
         username => Username,
-        x => 500.0, y => 500.0,   
+        x => StartX, y => StartY, 
+        vx => 0.0, vy => 0.0,     %% NEW: We must track velocity!
         angle => 0.0, mass => 10.0,
         inputs => #{left => 0, right => 0, forward => 0}
     },
@@ -83,14 +92,50 @@ update_player_inputs(State, ClientPid, Left, Right, Forward) ->
     end.
 
 apply_dummy_physics(State) ->
-    maps:map(fun(_ClientPid, PlayerData = #{x := X, angle := Angle, inputs := Inputs}) ->
-        NewX = case maps:get(forward, Inputs) of 1 -> X + 1.0; 0 -> X end,
+    maps:map(fun(_ClientPid, PlayerData = #{x := X, y := Y, vx := Vx, vy := Vy, angle := Angle, mass := Mass, inputs := Inputs}) ->
+        
+        %% 1. Torque (Rotation) - Inversely proportional to Mass
+        %% Lighter players turn faster, heavier players turn slower!
+        TurnSpeed = 1.5 / Mass, 
         NewAngle = case {maps:get(left, Inputs), maps:get(right, Inputs)} of
-            {1, 0} -> Angle - 0.1;
-            {0, 1} -> Angle + 0.1;
+            {1, 0} -> Angle - TurnSpeed;
+            {0, 1} -> Angle + TurnSpeed;
             _ -> Angle
         end,
-        PlayerData#{x => NewX, angle => NewAngle}
+
+        %% 2. Force (Acceleration) - Inversely proportional to Mass
+        Thrust = case maps:get(forward, Inputs) of
+            1 -> 15.0 / Mass; 
+            0 -> 0.0
+        end,
+
+        %% 3. Trigonometry! Apply thrust in the exact direction we are facing
+        NewVx = Vx + (math:cos(NewAngle) * Thrust),
+        NewVy = Vy + (math:sin(NewAngle) * Thrust),
+
+        %% 4. Apply Space Friction (Drag) so they don't slide forever
+        FinalVx = NewVx * 0.95,
+        FinalVy = NewVy * 0.95,
+
+        %% 5. Update Position
+        CalculatedX = X + FinalVx,
+        CalculatedY = Y + FinalVy,
+
+        %% 6. PDF Requirement: Wall Collisions!
+        %% Maintain tangential velocity, but prevent them from leaving the 1000x1000 map.
+        %% We subtract a 20px radius buffer so they don't visually clip out of the window.
+        BoundedX = max(20.0, min(980.0, CalculatedX)),
+        BoundedY = max(20.0, min(980.0, CalculatedY)),
+
+        %% If they hit a wall, kill the velocity pushing INTO the wall, but keep tangential!
+        WallVx = case BoundedX == CalculatedX of true -> FinalVx; false -> 0.0 end,
+        WallVy = case BoundedY == CalculatedY of true -> FinalVy; false -> 0.0 end,
+
+        PlayerData#{
+            x => BoundedX, y => BoundedY,
+            vx => WallVx, vy => WallVy,
+            angle => NewAngle
+        }
     end, State).
 
 %% ====================================================================

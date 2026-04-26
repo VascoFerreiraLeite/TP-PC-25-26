@@ -15,6 +15,7 @@ public class GameClient {
     public void connect(String host, int port) {
         try {
             socket = new Socket(host, port);
+            socket.setTcpNoDelay(true);
             out = new DataOutputStream(socket.getOutputStream());
             in = new DataInputStream(socket.getInputStream());
 
@@ -86,8 +87,6 @@ public class GameClient {
                 } else if (packetId == 19) {
                     // 0x13 Game State Tick
                     int numPlayers = in.readByte();
-
-                    app.clearPlayers(); // Clear the old frame
 
                     for (int i = 0; i < numPlayers; i++) {
                         int id = in.readInt();

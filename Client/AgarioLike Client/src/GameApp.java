@@ -31,7 +31,7 @@ public class GameApp extends PApplet {
     }
 
     public void settings() {
-        size(800, 600); // Made the window a bit bigger
+        size(1000, 1000); // Made the window a bit bigger
     }
 
     public void setup() {
@@ -90,9 +90,9 @@ public class GameApp extends PApplet {
 
     public void keyPressed() {
         boolean changed = false;
-        if (keyCode == LEFT)  { leftPressed = 1; changed = true; }
-        if (keyCode == RIGHT) { rightPressed = 1; changed = true; }
-        if (keyCode == UP)    { forwardPressed = 1; changed = true; }
+        if (keyCode == LEFT && leftPressed == 0)  { leftPressed = 1; changed = true; }
+        if (keyCode == RIGHT && rightPressed == 0) { rightPressed = 1; changed = true; }
+        if (keyCode == UP && forwardPressed == 0)    { forwardPressed = 1; changed = true; }
 
         if (changed) client.sendMovement(leftPressed, rightPressed, forwardPressed);
     }
