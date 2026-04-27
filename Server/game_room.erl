@@ -97,14 +97,15 @@ generate_objects(FoodLeft, PoisonLeft, Id, Acc) ->
     %% Random coordinates between 20 and 980
     X = 20.0 + rand:uniform() * 1240.0,
     Y = 20.0 + rand:uniform() * 680.0,
+
+    RandomRadius = 3.0 + (rand:uniform() * 5.0),
     
     {NewFood, NewPoison, Type} = if 
-        FoodLeft > 0 -> {FoodLeft - 1, PoisonLeft, 1}; %% Type 1 = Green Food
-        true ->         {0, PoisonLeft - 1, 2}         %% Type 2 = Red Poison
+        FoodLeft > 0 -> {FoodLeft - 1, PoisonLeft, 1}; 
+        true ->         {0, PoisonLeft - 1, 2}         
     end,
 
-    %% Save radius and type
-    Obj = #{id => Id, x => X, y => Y, radius => 5.0, type => Type},
+    Obj = #{id => Id, x => X, y => Y, radius => RandomRadius, type => Type},
     generate_objects(NewFood, NewPoison, Id + 1, maps:put(Id, Obj, Acc)).
 
 update_player_inputs(State, ClientPid, Left, Right, Forward) ->
@@ -176,30 +177,37 @@ check_object_collisions(Players, Objects) ->
     end, {#{}, Objects}, Players).
 
 player_eat_objects(Player = #{x := Px, y := Py, mass := Mass}, Objects) ->
-    %% Match Java's exact radius calculation: sqrt(Mass / Pi) * 10
     PRadius = math:sqrt(Mass / math:pi()) * 10.0,
     
     maps:fold(fun(ObjId, Obj = #{x := Ox, y := Oy, radius := ORadius, type := Type}, {AccPlayer, AccObjs}) ->
-        %% Pythagorean theorem for distance
         Dist = math:sqrt((Px - Ox)*(Px - Ox) + (Py - Oy)*(Py - Oy)),
         
-        case Dist =< (PRadius + ORadius) of
+        %% NOVA LÓGICA: Separar as regras matemáticas pelo Tipo de Orbe!
+        IsCollision = case Type of
+            1 -> Dist + ORadius =< PRadius; %% Verde (1): Exige sobreposição COMPLETA
+            2 -> Dist =< PRadius + ORadius  %% Vermelho (2): Qualquer sobreposição serve
+        end,
+        
+        case IsCollision of
             true ->
-                %% COLLISION DETECTED!
                 CurrentMass = maps:get(mass, AccPlayer),
                 CurrentScore = maps:get(score, AccPlayer),
                 
-                %% Apply game rules based on object type
+                MassImpact = ORadius / 3.0, 
+                ScoreImpact = round(ORadius * 2), 
+                
                 {NewMass, NewScore} = case Type of
-                    1 -> {CurrentMass + 1.0, CurrentScore + 10};                %% Green: Grow!
-                    2 -> {max(5.0, CurrentMass - 2.0), max(0, CurrentScore - 10)} %% Red: Shrink (Min mass 5.0)
+                    1 -> {CurrentMass + MassImpact, CurrentScore + ScoreImpact};
+                    2 -> {max(5.0, CurrentMass - MassImpact), max(0, CurrentScore - ScoreImpact)}
                 end,
                 
-                %% Teleport the eaten object to a new random location
+                NewObjRadius = 3.0 + (rand:uniform() * 5.0),
                 ReplacementObj = Obj#{
-                    x => 20.0 + rand:uniform() * 960.0, 
-                    y => 20.0 + rand:uniform() * 960.0
+                    x => 20.0 + rand:uniform() * 1240.0, 
+                    y => 20.0 + rand:uniform() * 680.0,
+                    radius => NewObjRadius 
                 },
+                
                 FinalObjs = maps:put(ObjId, ReplacementObj, AccObjs),
                 UpdatedPlayer = AccPlayer#{mass => NewMass, score => NewScore},
                 
@@ -233,7 +241,6 @@ resolve_pvp([{ClientPid, _} | Rest], Players) ->
 try_eat_others(_P1Pid, _P1Data, [], Players) ->
     Players;
 try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
-    %% Ensure Player 2 is still alive
     case maps:find(P2Pid, Players) of
         {ok, P2Data} ->
             #{x := X1, y := Y1, mass := M1, score := S1} = P1Data,
@@ -242,40 +249,44 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
             R1 = math:sqrt(M1 / math:pi()) * 10.0,
             R2 = math:sqrt(M2 / math:pi()) * 10.0,
 
-            %% Pythagorean theorem for distance between centers
             Dist = math:sqrt((X1 - X2)*(X1 - X2) + (Y1 - Y2)*(Y1 - Y2)),
 
             if
-                %% Rule: Player 1 is strictly bigger AND completely covers Player 2
                 (M1 > M2) andalso (Dist + R2 =< R1) ->
-                    %% Player 2 is EATEN!
-                    P2Pid ! stop, %% Disconnect the loser's socket
+                    %% O Jogador 1 engoliu o Jogador 2!
                     
-                    %% Winner gets all the loser's mass and score, plus a 50pt hunting bonus
-                    NewP1 = P1Data#{mass => M1 + M2, score => S1 + S2 + 50},
-                    NewPlayers = maps:put(P1Pid, NewP1, maps:remove(P2Pid, Players)),
+                    %% Vencedor ganha apenas 1/4 da massa do perdedor
+                    NewP1 = P1Data#{mass => M1 + (M2 / 4.0), score => S1 + S2 + 50},
                     
-                    %% Keep checking the now-larger Player 1 against the rest
+                    %% Perdedor faz RESPAWN com a massa inicial (10.0) e score a 0
+                    NewP2 = P2Data#{
+                        x => 20.0 + rand:uniform() * 1240.0,
+                        y => 20.0 + rand:uniform() * 680.0,
+                        mass => 10.0, score => 0
+                    },
+                    
+                    %% Atualizamos ambos os jogadores no mapa
+                    NewPlayers = maps:put(P1Pid, NewP1, maps:put(P2Pid, NewP2, Players)),
                     try_eat_others(P1Pid, NewP1, Rest, NewPlayers);
 
-                %% Rule: Player 2 is strictly bigger AND completely covers Player 1
                 (M2 > M1) andalso (Dist + R1 =< R2) ->
-                    %% Player 1 is EATEN!
-                    P1Pid ! stop, %% Disconnect the loser's socket
+                    %% O Jogador 2 engoliu o Jogador 1!
+                    NewP2 = P2Data#{mass => M2 + (M1 / 4.0), score => S2 + S1 + 50},
                     
-                    %% Winner gets the mass and score
-                    NewP2 = P2Data#{mass => M2 + M1, score => S2 + S1 + 50},
-                    NewPlayers = maps:put(P2Pid, NewP2, maps:remove(P1Pid, Players)),
+                    NewP1 = P1Data#{
+                        x => 20.0 + rand:uniform() * 1240.0,
+                        y => 20.0 + rand:uniform() * 680.0,
+                        mass => 10.0, score => 0
+                    },
                     
-                    %% Player 1 is dead, stop checking Player 1 against anyone else!
+                    NewPlayers = maps:put(P2Pid, NewP2, maps:put(P1Pid, NewP1, Players)),
+                    %% Paramos de verificar o P1 porque ele acabou de morrer e fazer respawn longe
                     NewPlayers;
 
                 true ->
-                    %% No one completely covers anyone, continue to the next pair
                     try_eat_others(P1Pid, P1Data, Rest, Players)
             end;
         error ->
-            %% Player 2 was already eaten, continue
             try_eat_others(P1Pid, P1Data, Rest, Players)
     end.
 
