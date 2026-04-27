@@ -31,7 +31,7 @@ init(MatchmakerPid, PlayersList) ->
     loop(MatchmakerPid, State).
 
 %% Notice we extract the 'players' map directly in the function head now
-loop(MatchmakerPid, State = #{players := Players}) ->
+loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
     receive
         {movement_input, ClientPid, Left, Right, Forward} ->
             %% Update the inputs in the PlayerMap
@@ -39,12 +39,11 @@ loop(MatchmakerPid, State = #{players := Players}) ->
             loop(MatchmakerPid, State#{players => NewPlayers});
 
         tick ->
-            %% Apply physics to the PlayerMap
             MovedPlayers = apply_dummy_physics(Players),
             
-            %% (Collision detection to eat objects will go here next!)
-
-            UpdatedState = State#{players => MovedPlayers},
+            {FinalPlayers, FinalObjects} = check_object_collisions(MovedPlayers, Objects),
+            
+            UpdatedState = State#{players => FinalPlayers, objects => FinalObjects},
             broadcast_state(UpdatedState),
             
             erlang:send_after(33, self(), tick),
@@ -79,7 +78,7 @@ setup_players([{PlayerId, Username, ClientPid} | Rest], State) ->
         username => Username,
         x => StartX, y => StartY, 
         vx => 0.0, vy => 0.0,     %% NEW: We must track velocity!
-        angle => 0.0, mass => 10.0,
+        angle => 0.0, mass => 10.0, score => 0,
         inputs => #{left => 0, right => 0, forward => 0}
     },
     NewState = maps:put(ClientPid, PlayerData, State),
@@ -161,6 +160,50 @@ apply_dummy_physics(State) ->
     end, State).
 
 
+%% ====================================================================
+%% Collision Detection
+%% ====================================================================
+
+check_object_collisions(Players, Objects) ->
+    maps:fold(fun(ClientPid, PlayerData, {AccPlayers, AccObjects}) ->
+        {UpdatedPlayer, UpdatedObjects} = player_eat_objects(PlayerData, AccObjects),
+        {maps:put(ClientPid, UpdatedPlayer, AccPlayers), UpdatedObjects}
+    end, {#{}, Objects}, Players).
+
+player_eat_objects(Player = #{x := Px, y := Py, mass := Mass}, Objects) ->
+    %% Match Java's exact radius calculation: sqrt(Mass / Pi) * 10
+    PRadius = math:sqrt(Mass / math:pi()) * 10.0,
+    
+    maps:fold(fun(ObjId, Obj = #{x := Ox, y := Oy, radius := ORadius, type := Type}, {AccPlayer, AccObjs}) ->
+        %% Pythagorean theorem for distance
+        Dist = math:sqrt((Px - Ox)*(Px - Ox) + (Py - Oy)*(Py - Oy)),
+        
+        case Dist =< (PRadius + ORadius) of
+            true ->
+                %% COLLISION DETECTED!
+                CurrentMass = maps:get(mass, AccPlayer),
+                CurrentScore = maps:get(score, AccPlayer),
+                
+                %% Apply game rules based on object type
+                {NewMass, NewScore} = case Type of
+                    1 -> {CurrentMass + 1.0, CurrentScore + 10};                %% Green: Grow!
+                    2 -> {max(5.0, CurrentMass - 2.0), max(0, CurrentScore - 10)} %% Red: Shrink (Min mass 5.0)
+                end,
+                
+                %% Teleport the eaten object to a new random location
+                ReplacementObj = Obj#{
+                    x => 20.0 + rand:uniform() * 960.0, 
+                    y => 20.0 + rand:uniform() * 960.0
+                },
+                FinalObjs = maps:put(ObjId, ReplacementObj, AccObjs),
+                UpdatedPlayer = AccPlayer#{mass => NewMass, score => NewScore},
+                
+                {UpdatedPlayer, FinalObjs};
+            false ->
+                {AccPlayer, AccObjs}
+        end
+    end, {Player, Objects}, Objects).
+
 broadcast_state(State = #{players := Players}) ->
     Packet = build_state_packet(State),
     
@@ -173,8 +216,8 @@ broadcast_state(State = #{players := Players}) ->
 %% Packs BOTH players and objects into the Custom Binary Protocol
 build_state_packet(#{players := Players, objects := Objects}) ->
     NumPlayers = maps:size(Players),
-    PlayersBin = maps:fold(fun(_ClientPid, #{id := Id, x := X, y := Y, angle := Angle, mass := Mass}, AccBin) ->
-        Score = 0, 
+    PlayersBin = maps:fold(fun(_ClientPid, #{id := Id, x := X, y := Y, angle := Angle, mass := Mass, score := Score}, AccBin) ->
+
         PlayerBin = <<Id:32/integer, X:32/float, Y:32/float, Angle:32/float, Mass:32/float, Score:32/integer>>,
         <<AccBin/binary, PlayerBin/binary>>
     end, <<>>, Players),

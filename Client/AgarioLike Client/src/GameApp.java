@@ -11,9 +11,9 @@ public class GameApp extends PApplet {
     int myPlayerId = -1;
 
     class PlayerData {
-        int id; float x, y, angle, radius;
-        public PlayerData(int id, float x, float y, float angle, float mass) {
-            this.id = id; this.x = x; this.y = y; this.angle = angle;
+        int id, score; float x, y, angle, radius;
+        public PlayerData(int id, float x, float y, float angle, float mass, int score) {
+            this.id = id; this.x = x; this.y = y; this.angle = angle; this.score = score;
             this.radius = (float)(Math.sqrt(mass / Math.PI)) * 10;
         }
     }
@@ -74,7 +74,7 @@ public class GameApp extends PApplet {
     }
 
     public void updatePlayer(int id, float x, float y, float angle, float mass, int score) {
-        players.put(id, new PlayerData(id, x, y, angle, mass));
+        players.put(id, new PlayerData(id, x, y, angle, mass, score));
     }
 
     public void draw() {
@@ -92,22 +92,25 @@ public class GameApp extends PApplet {
         for (PlayerData p : players.values()) {
             pushMatrix();
             translate(p.x, p.y);
+
+            // --- DRAW THE BODY ---
             rotate(p.angle);
-
-            fill(0); // Black body
-
-            // Draw Blue border for us, Red for enemies
-            if (p.id == myPlayerId) {
-                stroke(0, 0, 255);
-            } else {
-                stroke(255, 0, 0);
-            }
-
+            fill(0);
+            if (p.id == myPlayerId) stroke(0, 0, 255);
+            else stroke(255, 0, 0);
             strokeWeight(3);
             circle(0, 0, p.radius * 2);
-
-            stroke(255, 0, 0); // Red direction line
+            stroke(255, 0, 0);
             line(0, 0, p.radius, 0);
+
+            // --- DRAW THE SCORE TEXT ---
+            // Un-rotate so the text stays flat and readable!
+            rotate(-p.angle);
+            fill(255); // White text
+            textAlign(CENTER, CENTER);
+            textSize(Math.max(12, p.radius / 1.5f)); // Scale text with the player
+            text(p.score, 0, 0);
+
             popMatrix();
         }
     }
