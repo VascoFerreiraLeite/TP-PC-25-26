@@ -19,33 +19,26 @@ init(MatchmakerPid, PlayersList) ->
         ClientPid ! {game_started, self(), PlayerId, MapWidth, MapHeight} 
     end, PlayersList),
 
-    %% 1. Generate Players and Objects
     PlayerMap = setup_players(PlayersList, #{}),
-    ObjectMap = generate_objects(50, 10), %% Spawn 50 Green Food, 10 Red Poison
+    ObjectMap = generate_objects(50, 10), 
 
-    %% 2. NEW STATE STRUCTURE: Hold both!
     State = #{players => PlayerMap, objects => ObjectMap},
 
     erlang:send_after(33, self(), tick),
     erlang:send_after(120000, self(), match_end),
     loop(MatchmakerPid, State).
 
-%% Notice we extract the 'players' map directly in the function head now
 loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
     receive
         {movement_input, ClientPid, Left, Right, Forward} ->
-            %% Update the inputs in the PlayerMap
             NewPlayers = update_player_inputs(Players, ClientPid, Left, Right, Forward),
             loop(MatchmakerPid, State#{players => NewPlayers});
 
         tick ->
-            %% 1. Apply Physics
             MovedPlayers = apply_dummy_physics(Players),
             
-            %% 2. Check Object Collisions (Green/Red Orbs)
             {PlayersAfterOrbs, FinalObjects} = check_object_collisions(MovedPlayers, Objects),
             
-            %% 3. NEW: Check Player vs Player Collisions!
             FinalPlayers = check_player_collisions(PlayersAfterOrbs),
             
             UpdatedState = State#{players => FinalPlayers, objects => FinalObjects},
@@ -82,7 +75,7 @@ setup_players([{PlayerId, Username, ClientPid} | Rest], State) ->
         id => PlayerId,
         username => Username,
         x => StartX, y => StartY, 
-        vx => 0.0, vy => 0.0,     %% NEW: We must track velocity!
+        vx => 0.0, vy => 0.0,     
         angle => 0.0, mass => 10.0, score => 0,
         inputs => #{left => 0, right => 0, forward => 0}
     },
@@ -108,6 +101,17 @@ generate_objects(FoodLeft, PoisonLeft, Id, Acc) ->
     Obj = #{id => Id, x => X, y => Y, radius => RandomRadius, type => Type},
     generate_objects(NewFood, NewPoison, Id + 1, maps:put(Id, Obj, Acc)).
 
+get_min_player_radius(Players) ->
+    maps:fold(fun(_Pid, #{mass := M}, MinAcc) ->
+        R = math:sqrt(M / math:pi()) * 10.0,
+        if R < MinAcc -> R; true -> MinAcc end
+    end, 100000.0, Players).
+
+exists_smaller_food(Objects, MinR) ->
+    maps:fold(fun(_Id, #{radius := R, type := Type}, Found) ->
+        Found orelse (Type == 1 andalso R < MinR)
+    end, false, Objects).
+
 update_player_inputs(State, ClientPid, Left, Right, Forward) ->
     case maps:find(ClientPid, State) of
         {ok, PlayerData} ->
@@ -121,8 +125,7 @@ update_player_inputs(State, ClientPid, Left, Right, Forward) ->
 apply_dummy_physics(State) ->
     maps:map(fun(_ClientPid, PlayerData = #{x := X, y := Y, vx := Vx, vy := Vy, angle := Angle, mass := Mass, inputs := Inputs}) ->
         
-        %% 1. Torque (Rotation) - Inversely proportional to Mass
-        %% Lighter players turn faster, heavier players turn slower!
+       
         TurnSpeed = 1.5 / Mass, 
         NewAngle = case {maps:get(left, Inputs), maps:get(right, Inputs)} of
             {1, 0} -> Angle - TurnSpeed;
@@ -130,31 +133,23 @@ apply_dummy_physics(State) ->
             _ -> Angle
         end,
 
-        %% 2. Force (Acceleration) - Inversely proportional to Mass
         Thrust = case maps:get(forward, Inputs) of
             1 -> 15.0 / Mass; 
             0 -> 0.0
         end,
 
-        %% 3. Trigonometry! Apply thrust in the exact direction we are facing
         NewVx = Vx + (math:cos(NewAngle) * Thrust),
         NewVy = Vy + (math:sin(NewAngle) * Thrust),
 
-        %% 4. Apply Space Friction (Drag) so they don't slide forever
         FinalVx = NewVx * 0.95,
         FinalVy = NewVy * 0.95,
 
-        %% 5. Update Position
         CalculatedX = X + FinalVx,
         CalculatedY = Y + FinalVy,
 
-        %% 6. PDF Requirement: Wall Collisions!
-        %% Maintain tangential velocity, but prevent them from leaving the 1280x720 map.
-        %% We subtract a 20px radius buffer so they don't visually clip out of the window.
         BoundedX = max(20.0, min(1260.0, CalculatedX)),
         BoundedY = max(20.0, min(700.0, CalculatedY)),
 
-        %% If they hit a wall, kill the velocity pushing INTO the wall, but keep tangential!
         WallVx = case BoundedX == CalculatedX of true -> FinalVx; false -> 0.0 end,
         WallVy = case BoundedY == CalculatedY of true -> FinalVy; false -> 0.0 end,
 
@@ -165,27 +160,22 @@ apply_dummy_physics(State) ->
         }
     end, State).
 
-
-%% ====================================================================
-%% Collision Detection
-%% ====================================================================
-
 check_object_collisions(Players, Objects) ->
     maps:fold(fun(ClientPid, PlayerData, {AccPlayers, AccObjects}) ->
-        {UpdatedPlayer, UpdatedObjects} = player_eat_objects(PlayerData, AccObjects),
+        {UpdatedPlayer, UpdatedObjects} = player_eat_objects(Players, PlayerData, AccObjects),
+        
         {maps:put(ClientPid, UpdatedPlayer, AccPlayers), UpdatedObjects}
     end, {#{}, Objects}, Players).
 
-player_eat_objects(Player = #{x := Px, y := Py, mass := Mass}, Objects) ->
+player_eat_objects(Players, Player = #{x := Px, y := Py, mass := Mass}, Objects) ->
     PRadius = math:sqrt(Mass / math:pi()) * 10.0,
     
     maps:fold(fun(ObjId, Obj = #{x := Ox, y := Oy, radius := ORadius, type := Type}, {AccPlayer, AccObjs}) ->
         Dist = math:sqrt((Px - Ox)*(Px - Ox) + (Py - Oy)*(Py - Oy)),
         
-        %% NOVA LÓGICA: Separar as regras matemáticas pelo Tipo de Orbe!
         IsCollision = case Type of
-            1 -> Dist + ORadius =< PRadius; %% Verde (1): Exige sobreposição COMPLETA
-            2 -> Dist =< PRadius + ORadius  %% Vermelho (2): Qualquer sobreposição serve
+            1 -> Dist + ORadius =< PRadius; 
+            2 -> Dist =< PRadius + ORadius 
         end,
         
         case IsCollision of
@@ -200,26 +190,31 @@ player_eat_objects(Player = #{x := Px, y := Py, mass := Mass}, Objects) ->
                     1 -> {CurrentMass + MassImpact, CurrentScore + ScoreImpact};
                     2 -> {max(5.0, CurrentMass - MassImpact), max(0, CurrentScore - ScoreImpact)}
                 end,
+
+                MinPlayerR = get_min_player_radius(Players),
+
+                TempObjs = maps:remove(ObjId, AccObjs),
+                SmallerExists = exists_smaller_food(TempObjs, MinPlayerR),
                 
-                NewObjRadius = 3.0 + (rand:uniform() * 5.0),
+                NewObjRadius = if 
+                    not SmallerExists -> 
+                        MinPlayerR * 0.7; 
+                    true -> 
+                        3.0 + (rand:uniform() * 25.0) 
+                end,
+                
                 ReplacementObj = Obj#{
                     x => 20.0 + rand:uniform() * 1240.0, 
                     y => 20.0 + rand:uniform() * 680.0,
-                    radius => NewObjRadius 
+                    radius => NewObjRadius
                 },
                 
-                FinalObjs = maps:put(ObjId, ReplacementObj, AccObjs),
-                UpdatedPlayer = AccPlayer#{mass => NewMass, score => NewScore},
-                
-                {UpdatedPlayer, FinalObjs};
+                {AccPlayer#{mass => NewMass, score => NewScore}, maps:put(ObjId, ReplacementObj, AccObjs)};
             false ->
                 {AccPlayer, AccObjs}
         end
     end, {Player, Objects}, Objects).
 
-%% ====================================================================
-%% Player vs Player Collision Detection
-%% ====================================================================
 
 check_player_collisions(Players) ->
     %% Convert map to list so we can recursively compare pairs
@@ -229,7 +224,6 @@ check_player_collisions(Players) ->
 resolve_pvp([], Players) ->
     Players;
 resolve_pvp([{ClientPid, _} | Rest], Players) ->
-    %% Check if this player is still alive in the map (they might have been eaten in this tick!)
     case maps:find(ClientPid, Players) of
         {ok, PlayerData} ->
             UpdatedPlayers = try_eat_others(ClientPid, PlayerData, Rest, Players),
@@ -253,24 +247,19 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
 
             if
                 (M1 > M2) andalso (Dist + R2 =< R1) ->
-                    %% O Jogador 1 engoliu o Jogador 2!
                     
-                    %% Vencedor ganha apenas 1/4 da massa do perdedor
                     NewP1 = P1Data#{mass => M1 + (M2 / 4.0), score => S1 + S2 + 50},
                     
-                    %% Perdedor faz RESPAWN com a massa inicial (10.0) e score a 0
                     NewP2 = P2Data#{
                         x => 20.0 + rand:uniform() * 1240.0,
                         y => 20.0 + rand:uniform() * 680.0,
                         mass => 10.0, score => 0
                     },
                     
-                    %% Atualizamos ambos os jogadores no mapa
                     NewPlayers = maps:put(P1Pid, NewP1, maps:put(P2Pid, NewP2, Players)),
                     try_eat_others(P1Pid, NewP1, Rest, NewPlayers);
 
                 (M2 > M1) andalso (Dist + R1 =< R2) ->
-                    %% O Jogador 2 engoliu o Jogador 1!
                     NewP2 = P2Data#{mass => M2 + (M1 / 4.0), score => S2 + S1 + 50},
                     
                     NewP1 = P1Data#{
@@ -280,7 +269,6 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
                     },
                     
                     NewPlayers = maps:put(P2Pid, NewP2, maps:put(P1Pid, NewP1, Players)),
-                    %% Paramos de verificar o P1 porque ele acabou de morrer e fazer respawn longe
                     NewPlayers;
 
                 true ->
@@ -293,13 +281,11 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
 broadcast_state(State = #{players := Players}) ->
     Packet = build_state_packet(State),
     
-    %% Loop over the Players map to find the ClientPids to send to
     maps:fold(fun(ClientPid, _PlayerData, _Acc) ->
         ClientPid ! {send_raw_packet, Packet},
         ok
     end, ok, Players).
 
-%% Packs BOTH players and objects into the Custom Binary Protocol
 build_state_packet(#{players := Players, objects := Objects}) ->
     NumPlayers = maps:size(Players),
     PlayersBin = maps:fold(fun(_ClientPid, #{id := Id, x := X, y := Y, angle := Angle, mass := Mass, score := Score}, AccBin) ->
@@ -308,7 +294,6 @@ build_state_packet(#{players := Players, objects := Objects}) ->
         <<AccBin/binary, PlayerBin/binary>>
     end, <<>>, Players),
 
-    %% NEW: Pack the objects loop!
     NumObjects = maps:size(Objects),
     ObjectsBin = maps:fold(fun(_ObjId, #{id := Id, x := X, y := Y, radius := R, type := Type}, AccBin) ->
         ObjBin = <<Id:32/integer, X:32/float, Y:32/float, R:32/float, Type:8/integer>>,
