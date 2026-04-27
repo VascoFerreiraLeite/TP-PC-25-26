@@ -1,12 +1,9 @@
 import processing.core.PApplet;
-
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GameApp extends PApplet {
 
     GameClient client;
-    String username = "Player1";
 
     int myPlayerId = -1;
 
@@ -18,7 +15,6 @@ public class GameApp extends PApplet {
         }
     }
 
-    // Inner class to hold Orb Data
     public class OrbData {
         int id; float x, y, radius; byte type;
         public OrbData(int id, float x, float y, float radius, byte type) {
@@ -26,18 +22,14 @@ public class GameApp extends PApplet {
         }
     }
 
-    // Thread-safe map for objects
     ConcurrentHashMap<Integer, OrbData> orbs = new ConcurrentHashMap<>();
 
-    // We replace the entire map at once to prevent screen flickering
     public void updateObjects(ConcurrentHashMap<Integer, OrbData> newOrbs) {
         this.orbs = newOrbs;
     }
 
     ConcurrentHashMap<Integer, PlayerData> players = new ConcurrentHashMap<>();
 
-
-    // Input Flags
     int leftPressed = 0;
     int rightPressed = 0;
     int forwardPressed = 0;
@@ -47,30 +39,19 @@ public class GameApp extends PApplet {
     }
 
     public void settings() {
-        size(1000, 1000); // Made the window a bit bigger
+        size(1000, 1000);
     }
 
     public void setup() {
         client = new GameClient(this);
         client.connect("localhost", 8080);
 
-        // Let's test the new Auth Protocol!
         String myUser = "Player1";
         String myPass = "secret123";
 
-        // 1. Try to register
         client.sendAuthAction(1, myUser, myPass);
 
-        // 2. Try to log in and queue
         client.sendAuthAction(2, myUser, myPass);
-    }
-
-    public void setMyPlayerId(int id) {
-        this.myPlayerId = id;
-    }
-
-    public void clearPlayers() {
-        players.clear();
     }
 
     public void updatePlayer(int id, float x, float y, float angle, float mass, int score) {
@@ -81,19 +62,18 @@ public class GameApp extends PApplet {
         background(255, 255, 255);
 
         for (OrbData orb : orbs.values()) {
-            if (orb.type == 1) fill(0, 255, 0); // Type 1: Green Food
-            else fill(255, 0, 0);               // Type 2: Red Poison
+            if (orb.type == 1) fill(0, 255, 0);
+            else fill(255, 0, 0);
 
-            noStroke(); // No border for orbs
+            noStroke();
             circle(orb.x, orb.y, orb.radius * 2);
         }
 
-        // Loop through all players in the map
+
         for (PlayerData p : players.values()) {
             pushMatrix();
             translate(p.x, p.y);
 
-            // --- DRAW THE BODY ---
             rotate(p.angle);
             fill(0);
             if (p.id == myPlayerId) stroke(0, 0, 255);
@@ -103,12 +83,10 @@ public class GameApp extends PApplet {
             stroke(255, 0, 0);
             line(0, 0, p.radius, 0);
 
-            // --- DRAW THE SCORE TEXT ---
-            // Un-rotate so the text stays flat and readable!
             rotate(-p.angle);
-            fill(255); // White text
+            fill(255);
             textAlign(CENTER, CENTER);
-            textSize(Math.max(12, p.radius / 1.5f)); // Scale text with the player
+            textSize(Math.max(12, p.radius / 1.5f));
             text(p.score, 0, 0);
 
             popMatrix();

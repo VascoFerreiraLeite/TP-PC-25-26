@@ -27,13 +27,11 @@ public class GameClient {
         }
     }
 
-    // Handles Register (1), Login (2), and Cancel (3)
     public void sendAuthAction(int actionId, String username, String password) {
         try {
             byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
             byte[] passBytes = password.getBytes(StandardCharsets.UTF_8);
 
-            // Build the packet entirely in memory before sending to prevent TCP fragmentation
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos);
 
@@ -50,10 +48,9 @@ public class GameClient {
         }
     }
 
-    // Protocol: [4] [Left] [Right] [Forward]
     public void sendMovement(int left, int right, int forward) {
         try {
-            out.writeByte(4); // Changed to 4
+            out.writeByte(4);
             out.writeByte(left);
             out.writeByte(right);
             out.writeByte(forward);
@@ -69,16 +66,14 @@ public class GameClient {
                 byte packetId = in.readByte();
 
                 if (packetId == 16) {
-                    // 0x10 Auth Response
                     byte status = in.readByte();
                     short msgLen = in.readShort();
                     byte[] msgBytes = new byte[msgLen];
-                    in.readFully(msgBytes); // Ensure we read the exact length of the string
+                    in.readFully(msgBytes);
 
                     String message = new String(msgBytes, StandardCharsets.UTF_8);
                     System.out.println("[SERVER] " + (status == 1 ? "SUCCESS: " : "ERROR: ") + message);
                 } else if (packetId == 18) {
-                    // 0x12 Game Started Packet
                     int myPlayerId = in.readInt();
                     float mapWidth = in.readFloat();
                     float mapHeight = in.readFloat();
@@ -86,7 +81,6 @@ public class GameClient {
                     System.out.println("[SERVER] Game Started! My ID is: " + myPlayerId);
                     System.out.println("[SERVER] Map Dimensions: " + mapWidth + "x" + mapHeight);
                 } else if (packetId == 19) {
-                    // 0x13 Game State Tick
                     int numPlayers = in.readByte();
 
                     for (int i = 0; i < numPlayers; i++) {
@@ -110,7 +104,6 @@ public class GameClient {
                         float radius = in.readFloat();
                         byte type = in.readByte();
 
-                        // Add to our temporary map
                         newOrbs.put(id, app.new OrbData(id, x, y, radius, type));
                     }
 

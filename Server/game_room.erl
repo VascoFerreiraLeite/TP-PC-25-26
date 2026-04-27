@@ -39,9 +39,14 @@ loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
             loop(MatchmakerPid, State#{players => NewPlayers});
 
         tick ->
+            %% 1. Apply Physics
             MovedPlayers = apply_dummy_physics(Players),
             
-            {FinalPlayers, FinalObjects} = check_object_collisions(MovedPlayers, Objects),
+            %% 2. Check Object Collisions (Green/Red Orbs)
+            {PlayersAfterOrbs, FinalObjects} = check_object_collisions(MovedPlayers, Objects),
+            
+            %% 3. NEW: Check Player vs Player Collisions!
+            FinalPlayers = check_player_collisions(PlayersAfterOrbs),
             
             UpdatedState = State#{players => FinalPlayers, objects => FinalObjects},
             broadcast_state(UpdatedState),
@@ -203,6 +208,76 @@ player_eat_objects(Player = #{x := Px, y := Py, mass := Mass}, Objects) ->
                 {AccPlayer, AccObjs}
         end
     end, {Player, Objects}, Objects).
+
+%% ====================================================================
+%% Player vs Player Collision Detection
+%% ====================================================================
+
+check_player_collisions(Players) ->
+    %% Convert map to list so we can recursively compare pairs
+    PlayerList = maps:to_list(Players),
+    resolve_pvp(PlayerList, Players).
+
+resolve_pvp([], Players) ->
+    Players;
+resolve_pvp([{ClientPid, _} | Rest], Players) ->
+    %% Check if this player is still alive in the map (they might have been eaten in this tick!)
+    case maps:find(ClientPid, Players) of
+        {ok, PlayerData} ->
+            UpdatedPlayers = try_eat_others(ClientPid, PlayerData, Rest, Players),
+            resolve_pvp(Rest, UpdatedPlayers);
+        error ->
+            resolve_pvp(Rest, Players)
+    end.
+
+try_eat_others(_P1Pid, _P1Data, [], Players) ->
+    Players;
+try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
+    %% Ensure Player 2 is still alive
+    case maps:find(P2Pid, Players) of
+        {ok, P2Data} ->
+            #{x := X1, y := Y1, mass := M1, score := S1} = P1Data,
+            #{x := X2, y := Y2, mass := M2, score := S2} = P2Data,
+
+            R1 = math:sqrt(M1 / math:pi()) * 10.0,
+            R2 = math:sqrt(M2 / math:pi()) * 10.0,
+
+            %% Pythagorean theorem for distance between centers
+            Dist = math:sqrt((X1 - X2)*(X1 - X2) + (Y1 - Y2)*(Y1 - Y2)),
+
+            if
+                %% Rule: Player 1 is strictly bigger AND completely covers Player 2
+                (M1 > M2) andalso (Dist + R2 =< R1) ->
+                    %% Player 2 is EATEN!
+                    P2Pid ! stop, %% Disconnect the loser's socket
+                    
+                    %% Winner gets all the loser's mass and score, plus a 50pt hunting bonus
+                    NewP1 = P1Data#{mass => M1 + M2, score => S1 + S2 + 50},
+                    NewPlayers = maps:put(P1Pid, NewP1, maps:remove(P2Pid, Players)),
+                    
+                    %% Keep checking the now-larger Player 1 against the rest
+                    try_eat_others(P1Pid, NewP1, Rest, NewPlayers);
+
+                %% Rule: Player 2 is strictly bigger AND completely covers Player 1
+                (M2 > M1) andalso (Dist + R1 =< R2) ->
+                    %% Player 1 is EATEN!
+                    P1Pid ! stop, %% Disconnect the loser's socket
+                    
+                    %% Winner gets the mass and score
+                    NewP2 = P2Data#{mass => M2 + M1, score => S2 + S1 + 50},
+                    NewPlayers = maps:put(P2Pid, NewP2, maps:remove(P1Pid, Players)),
+                    
+                    %% Player 1 is dead, stop checking Player 1 against anyone else!
+                    NewPlayers;
+
+                true ->
+                    %% No one completely covers anyone, continue to the next pair
+                    try_eat_others(P1Pid, P1Data, Rest, Players)
+            end;
+        error ->
+            %% Player 2 was already eaten, continue
+            try_eat_others(P1Pid, P1Data, Rest, Players)
+    end.
 
 broadcast_state(State = #{players := Players}) ->
     Packet = build_state_packet(State),
