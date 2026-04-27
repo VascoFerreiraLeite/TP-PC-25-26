@@ -18,6 +18,22 @@ public class GameApp extends PApplet {
         }
     }
 
+    // Inner class to hold Orb Data
+    public class OrbData {
+        int id; float x, y, radius; byte type;
+        public OrbData(int id, float x, float y, float radius, byte type) {
+            this.id = id; this.x = x; this.y = y; this.radius = radius; this.type = type;
+        }
+    }
+
+    // Thread-safe map for objects
+    ConcurrentHashMap<Integer, OrbData> orbs = new ConcurrentHashMap<>();
+
+    // We replace the entire map at once to prevent screen flickering
+    public void updateObjects(ConcurrentHashMap<Integer, OrbData> newOrbs) {
+        this.orbs = newOrbs;
+    }
+
     ConcurrentHashMap<Integer, PlayerData> players = new ConcurrentHashMap<>();
 
 
@@ -63,6 +79,14 @@ public class GameApp extends PApplet {
 
     public void draw() {
         background(255, 255, 255);
+
+        for (OrbData orb : orbs.values()) {
+            if (orb.type == 1) fill(0, 255, 0); // Type 1: Green Food
+            else fill(255, 0, 0);               // Type 2: Red Poison
+
+            noStroke(); // No border for orbs
+            circle(orb.x, orb.y, orb.radius * 2);
+        }
 
         // Loop through all players in the map
         for (PlayerData p : players.values()) {

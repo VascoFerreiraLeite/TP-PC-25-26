@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GameClient {
     private Socket socket;
@@ -100,7 +101,20 @@ public class GameClient {
                     }
 
                     short numObjects = in.readShort();
-                    // We will add the object loop here later when we make food!
+                    ConcurrentHashMap<Integer, GameApp.OrbData> newOrbs = new ConcurrentHashMap<>();
+
+                    for (int i = 0; i < numObjects; i++) {
+                        int id = in.readInt();
+                        float x = in.readFloat();
+                        float y = in.readFloat();
+                        float radius = in.readFloat();
+                        byte type = in.readByte();
+
+                        // Add to our temporary map
+                        newOrbs.put(id, app.new OrbData(id, x, y, radius, type));
+                    }
+
+                    app.updateObjects(newOrbs);
 
                 } else {
                     System.out.println("Unknown packet ID: " + packetId);
