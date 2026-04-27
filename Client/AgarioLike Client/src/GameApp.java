@@ -39,7 +39,7 @@ public class GameApp extends PApplet {
     }
 
     public void settings() {
-        size(1000, 1000);
+        size(1280, 720);
     }
 
     public void setup() {

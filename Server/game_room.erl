@@ -13,7 +13,7 @@ stop(Pid) ->
 
 init(MatchmakerPid, PlayersList) ->
     io:format("Game Room started with ~p players!~n", [length(PlayersList)]),
-    MapWidth = 1000.0, MapHeight = 1000.0,
+    MapWidth = 1280.0, MapHeight = 720.0,
     
     lists:foreach(fun({PlayerId, _Username, ClientPid}) -> 
         ClientPid ! {game_started, self(), PlayerId, MapWidth, MapHeight} 
@@ -72,9 +72,9 @@ setup_players([], State) -> State;
 setup_players([{PlayerId, Username, ClientPid} | Rest], State) ->
     {StartX, StartY} = case PlayerId of
         1 -> {100.0, 100.0};  
-        2 -> {900.0, 100.0};  
-        3 -> {100.0, 900.0};  
-        4 -> {900.0, 900.0};  
+        2 -> {1180.0, 100.0};  
+        3 -> {100.0, 620.0};  
+        4 -> {1180.0, 620.0};  
         _ -> {500.0, 500.0}   
     end,
 
@@ -95,8 +95,8 @@ generate_objects(NumFood, NumPoison) ->
 generate_objects(0, 0, _Id, Acc) -> Acc;
 generate_objects(FoodLeft, PoisonLeft, Id, Acc) ->
     %% Random coordinates between 20 and 980
-    X = 20.0 + rand:uniform() * 960.0,
-    Y = 20.0 + rand:uniform() * 960.0,
+    X = 20.0 + rand:uniform() * 1240.0,
+    Y = 20.0 + rand:uniform() * 680.0,
     
     {NewFood, NewPoison, Type} = if 
         FoodLeft > 0 -> {FoodLeft - 1, PoisonLeft, 1}; %% Type 1 = Green Food
@@ -148,10 +148,10 @@ apply_dummy_physics(State) ->
         CalculatedY = Y + FinalVy,
 
         %% 6. PDF Requirement: Wall Collisions!
-        %% Maintain tangential velocity, but prevent them from leaving the 1000x1000 map.
+        %% Maintain tangential velocity, but prevent them from leaving the 1280x720 map.
         %% We subtract a 20px radius buffer so they don't visually clip out of the window.
-        BoundedX = max(20.0, min(980.0, CalculatedX)),
-        BoundedY = max(20.0, min(980.0, CalculatedY)),
+        BoundedX = max(20.0, min(1260.0, CalculatedX)),
+        BoundedY = max(20.0, min(700.0, CalculatedY)),
 
         %% If they hit a wall, kill the velocity pushing INTO the wall, but keep tangential!
         WallVx = case BoundedX == CalculatedX of true -> FinalVx; false -> 0.0 end,
