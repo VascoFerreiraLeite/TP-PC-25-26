@@ -53,6 +53,33 @@ loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
 
         match_end ->
             io:format("2 Minute Match Ended!~n"),
+            
+            %% 1. Get all players and sort them by score descending
+            PlayerList = maps:values(Players),
+            SortedPlayers = lists:sort(fun(#{score := S1}, #{score := S2}) -> S1 >= S2 end, PlayerList),
+            
+            %% 2. Determine Winner or Tie
+            case SortedPlayers of
+                [#{score := HighestScore, username := WinnerName} | Rest] ->
+                    %% Check if the second place player has the exact same score
+                    IsTie = case Rest of
+                        [#{score := SecondHighest} | _] when SecondHighest == HighestScore -> true;
+                        _ -> false
+                    end,
+                    
+                    if 
+                        IsTie ->
+                            io:format("Match Tie! Ignoring for leaderboard.~n"),
+                            broadcast_match_end(Players, "TIE", HighestScore);
+                        true ->
+                            io:format("Winner is ~s with ~p captures!~n", [WinnerName, HighestScore]),
+                            broadcast_match_end(Players, WinnerName, HighestScore)
+                            %% (Later, we will send this WinnerName to the score_manager!)
+                    end;
+                [] -> ok
+            end,
+
+            %% 3. Shut down the room
             matchmaker:match_ended(MatchmakerPid),
             maps:fold(fun(ClientPid, _, _Acc) -> ClientPid ! stop end, ok, Players),
             ok;
@@ -180,15 +207,12 @@ player_eat_objects(Players, Player = #{x := Px, y := Py, mass := Mass}, Objects)
         
         case IsCollision of
             true ->
-                CurrentMass = maps:get(mass, AccPlayer),
-                CurrentScore = maps:get(score, AccPlayer),
-                
+                CurrentMass = maps:get(mass, AccPlayer),                
                 MassImpact = ORadius / 3.0, 
-                ScoreImpact = round(ORadius * 2), 
                 
-                {NewMass, NewScore} = case Type of
-                    1 -> {CurrentMass + MassImpact, CurrentScore + ScoreImpact};
-                    2 -> {max(5.0, CurrentMass - MassImpact), max(0, CurrentScore - ScoreImpact)}
+                NewMass = case Type of
+                    1 -> CurrentMass + MassImpact;
+                    2 -> max(5.0, CurrentMass - MassImpact)
                 end,
 
                 MinPlayerR = get_min_player_radius(Players),
@@ -209,7 +233,7 @@ player_eat_objects(Players, Player = #{x := Px, y := Py, mass := Mass}, Objects)
                     radius => NewObjRadius
                 },
                 
-                {AccPlayer#{mass => NewMass, score => NewScore}, maps:put(ObjId, ReplacementObj, AccObjs)};
+                {AccPlayer#{mass => NewMass}, maps:put(ObjId, ReplacementObj, AccObjs)};
             false ->
                 {AccPlayer, AccObjs}
         end
@@ -248,24 +272,24 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
             if
                 (M1 > M2) andalso (Dist + R2 =< R1) ->
                     
-                    NewP1 = P1Data#{mass => M1 + (M2 / 4.0), score => S1 + S2 + 50},
+                    NewP1 = P1Data#{mass => M1 + (M2 / 4.0), score => S1 + S2 + 1},
                     
                     NewP2 = P2Data#{
                         x => 20.0 + rand:uniform() * 1240.0,
                         y => 20.0 + rand:uniform() * 680.0,
-                        mass => 10.0, score => 0
+                        mass => 10.0, score => S2
                     },
                     
                     NewPlayers = maps:put(P1Pid, NewP1, maps:put(P2Pid, NewP2, Players)),
                     try_eat_others(P1Pid, NewP1, Rest, NewPlayers);
 
                 (M2 > M1) andalso (Dist + R1 =< R2) ->
-                    NewP2 = P2Data#{mass => M2 + (M1 / 4.0), score => S2 + S1 + 50},
+                    NewP2 = P2Data#{mass => M2 + (M1 / 4.0), score => S2 + S1 + 1},
                     
                     NewP1 = P1Data#{
                         x => 20.0 + rand:uniform() * 1240.0,
                         y => 20.0 + rand:uniform() * 680.0,
-                        mass => 10.0, score => 0
+                        mass => 10.0, score => S1
                     },
                     
                     NewPlayers = maps:put(P2Pid, NewP2, maps:put(P1Pid, NewP1, Players)),
@@ -301,3 +325,16 @@ build_state_packet(#{players := Players, objects := Objects}) ->
     end, <<>>, Objects),
 
     <<19:8, NumPlayers:8, PlayersBin/binary, NumObjects:16/integer, ObjectsBin/binary>>.
+
+%% Sends the 0x14 Match Ended Packet
+broadcast_match_end(Players, WinnerName, HighestScore) ->
+    WinnerBin = list_to_binary(WinnerName),
+    NameLen = byte_size(WinnerBin),
+    
+    %% Protocol: [20: Byte] [NameLen: Short] [WinnerName: String] [HighestScore: Int]
+    Packet = <<20:8, NameLen:16/integer, WinnerBin/binary, HighestScore:32/integer>>,
+    
+    maps:fold(fun(ClientPid, _Data, _Acc) ->
+        ClientPid ! {send_raw_packet, Packet},
+        ok
+    end, ok, Players).

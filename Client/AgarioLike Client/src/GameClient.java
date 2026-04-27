@@ -109,6 +109,25 @@ public class GameClient {
 
                     app.updateObjects(newOrbs);
 
+                } else if (packetId == 20) {
+                    // 0x14 Match Ended Packet
+                    short nameLen = in.readShort();
+                    byte[] nameBytes = new byte[nameLen];
+                    in.readFully(nameBytes);
+                    String winnerName = new String(nameBytes, StandardCharsets.UTF_8);
+                    int highestScore = in.readInt();
+
+                    System.out.println("\n==================================");
+                    System.out.println("          MATCH OVER!             ");
+                    if (winnerName.equals("TIE")) {
+                        System.out.println("The match ended in a TIE with " + highestScore + " captures!");
+                        System.out.println("This match will be ignored for the leaderboard.");
+                    } else {
+                        System.out.println("WINNER: " + winnerName + "!");
+                        System.out.println("Total Captures: " + highestScore);
+                    }
+                    System.out.println("==================================\n");
+
                 } else {
                     System.out.println("Unknown packet ID: " + packetId);
                 }
