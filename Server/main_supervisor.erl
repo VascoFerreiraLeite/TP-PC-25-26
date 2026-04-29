@@ -12,6 +12,7 @@ init() ->
     
     {ok, AccountPid} = account_manager:start_link(),
     {ok, MatchmakerPid} = matchmaker:start_link(),
+    {ok, ScoreManagerPid} = score_manager:start_link(),
     {ok, ListenerPid} = tcp_listener:start_link(8080),
 
     register(account_manager, AccountPid),
@@ -19,6 +20,7 @@ init() ->
 
     State = #{
         AccountPid    => {account_manager, start_link, []},
+        ScoreManagerPid => {score_manager, start_link, []},
         MatchmakerPid => {matchmaker, start_link, []},
         ListenerPid   => {tcp_listener, start_link, [8080]}
     },

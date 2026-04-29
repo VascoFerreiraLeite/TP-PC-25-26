@@ -7,11 +7,9 @@ start_link() ->
     io:format("Score Manager started!~n"),
     {ok, Pid}.
 
-%% Called by the Game Room when a match ends
 add_winner(Name, Score) ->
     ?MODULE ! {add, Name, Score}.
 
-%% Called by the Matchmaker to show the lobby
 get_top() ->
     ?MODULE ! {get, self()},
     receive
@@ -22,11 +20,8 @@ get_top() ->
 loop(Scores) ->
     receive
         {add, Name, Score} ->
-            %% Add the new winner to the list
             List = [{Name, Score} | Scores],
-            %% Sort descending by score
             Sorted = lists:sort(fun({_, S1}, {_, S2}) -> S1 >= S2 end, List),
-            %% Keep only the top 10
             Top10 = lists:sublist(Sorted, 10),
             loop(Top10);
             

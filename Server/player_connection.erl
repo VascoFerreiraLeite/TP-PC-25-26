@@ -22,8 +22,10 @@ loop(State = #{socket := Socket, game_room := GameRoomPid}) ->
 
         {tcp_closed, Socket} ->
             io:format("Client disconnected.~n"),
-            if GameRoomPid =/= undefined -> GameRoomPid ! {player_left, self()};
-               true -> ok
+            if GameRoomPid =/= undefined -> 
+                   GameRoomPid ! {player_left, self()};
+               true -> 
+                   matchmaker:leave(self())
             end,
             ok;
 
@@ -51,19 +53,9 @@ loop(State = #{socket := Socket, game_room := GameRoomPid}) ->
             loop(State)
     end.
 
-%% ====================================================================
-%% Binary Payload Routing
-%% ====================================================================
-
-%% ====================================================================
-%% Binary Payload Routing (Recursive for TCP Streams!)
-%% ====================================================================
-
-%% Base Case: The binary is empty, we are done processing this chunk!
 handle_binary_payload(<<>>, State) ->
     State;
 
-%% 0x01: REGISTER
 handle_binary_payload(<<1:8, UserLen:16, UserBin:UserLen/binary, PassLen:16, PassBin:PassLen/binary, Rest/binary>>, State = #{socket := Socket}) ->
     Username = binary_to_list(UserBin),
     Password = binary_to_list(PassBin),
@@ -71,10 +63,8 @@ handle_binary_payload(<<1:8, UserLen:16, UserBin:UserLen/binary, PassLen:16, Pas
         ok -> send_auth_response(Socket, 1, "Registered successfully.");
         {error, _} -> send_auth_response(Socket, 0, "Username already exists.")
     end,
-    %% Recursively process any remaining bytes!
     handle_binary_payload(Rest, State);
 
-%% 0x02: LOGIN & QUEUE
 handle_binary_payload(<<2:8, UserLen:16, UserBin:UserLen/binary, PassLen:16, PassBin:PassLen/binary, Rest/binary>>, State = #{socket := Socket}) ->
     Username = binary_to_list(UserBin),
     Password = binary_to_list(PassBin),
@@ -89,7 +79,6 @@ handle_binary_payload(<<2:8, UserLen:16, UserBin:UserLen/binary, PassLen:16, Pas
     end,
     handle_binary_payload(Rest, NewState);
 
-%% 0x03: CANCEL ACCOUNT
 handle_binary_payload(<<3:8, UserLen:16, UserBin:UserLen/binary, PassLen:16, PassBin:PassLen/binary, Rest/binary>>, State = #{socket := Socket}) ->
     Username = binary_to_list(UserBin),
     Password = binary_to_list(PassBin),
@@ -99,7 +88,6 @@ handle_binary_payload(<<3:8, UserLen:16, UserBin:UserLen/binary, PassLen:16, Pas
     end,
     handle_binary_payload(Rest, State);
 
-%% 0x04: MOVEMENT
 handle_binary_payload(<<4:8, Left:8, Right:8, Forward:8, Rest/binary>>, State = #{game_room := GameRoomPid}) ->
     if GameRoomPid =/= undefined ->
            GameRoomPid ! {movement_input, self(), Left, Right, Forward};
@@ -107,19 +95,12 @@ handle_binary_payload(<<4:8, Left:8, Right:8, Forward:8, Rest/binary>>, State = 
     end,
     handle_binary_payload(Rest, State);
 
-%% Catch-All Fragmented Data
 handle_binary_payload(Unknown, State) ->
     io:format("Received unknown/fragmented payload: ~p~n", [Unknown]),
     State.
 
-%% ====================================================================
-%% Helper Functions
-%% ====================================================================
-
-%% Sends the 0x10 Auth Response packet
 send_auth_response(Socket, Status, Message) ->
     MsgBin = list_to_binary(Message),
     MsgLen = byte_size(MsgBin),
-    %% Protocol: [16] [Status: Byte] [MsgLen: Short] [Message: String]
     Packet = <<16:8, Status:8, MsgLen:16/integer, MsgBin/binary>>,
     gen_tcp:send(Socket, Packet).

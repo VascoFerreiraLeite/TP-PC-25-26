@@ -9,6 +9,8 @@ public class GameClient {
     private DataInputStream in;
     private GameApp app;
 
+
+
     public GameClient(GameApp app) {
         this.app = app;
     }
@@ -73,6 +75,22 @@ public class GameClient {
 
                     String message = new String(msgBytes, StandardCharsets.UTF_8);
                     System.out.println("[SERVER] " + (status == 1 ? "SUCCESS: " : "ERROR: ") + message);
+                } else if (packetId == 17) {
+                    // 0x11 Leaderboard Tick
+                    byte numEntries = in.readByte();
+                    java.util.List<String> newBoard = new java.util.ArrayList<>();
+
+                    for (int i = 0; i < numEntries; i++) {
+                        short nameLen = in.readShort();
+                        byte[] nameBytes = new byte[nameLen];
+                        in.readFully(nameBytes);
+                        String name = new String(nameBytes, StandardCharsets.UTF_8);
+                        int score = in.readInt();
+
+                        newBoard.add(name + " - " + score + " Captures");
+                    }
+                    app.updateLeaderboard(newBoard);
+
                 } else if (packetId == 18) {
                     int myPlayerId = in.readInt();
                     float mapWidth = in.readFloat();
@@ -80,6 +98,8 @@ public class GameClient {
 
                     System.out.println("[SERVER] Game Started! My ID is: " + myPlayerId);
                     System.out.println("[SERVER] Map Dimensions: " + mapWidth + "x" + mapHeight);
+
+                    app.setMyPlayerId(myPlayerId);
                 } else if (packetId == 19) {
                     int numPlayers = in.readByte();
 

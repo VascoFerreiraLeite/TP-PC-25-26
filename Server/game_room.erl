@@ -54,14 +54,11 @@ loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
         match_end ->
             io:format("2 Minute Match Ended!~n"),
             
-            %% 1. Get all players and sort them by score descending
             PlayerList = maps:values(Players),
             SortedPlayers = lists:sort(fun(#{score := S1}, #{score := S2}) -> S1 >= S2 end, PlayerList),
             
-            %% 2. Determine Winner or Tie
             case SortedPlayers of
                 [#{score := HighestScore, username := WinnerName} | Rest] ->
-                    %% Check if the second place player has the exact same score
                     IsTie = case Rest of
                         [#{score := SecondHighest} | _] when SecondHighest == HighestScore -> true;
                         _ -> false
@@ -79,7 +76,6 @@ loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
                 [] -> ok
             end,
 
-            %% 3. Shut down the room
             matchmaker:match_ended(MatchmakerPid),
             maps:fold(fun(ClientPid, _, _Acc) -> ClientPid ! stop end, ok, Players),
             ok;
@@ -326,12 +322,10 @@ build_state_packet(#{players := Players, objects := Objects}) ->
 
     <<19:8, NumPlayers:8, PlayersBin/binary, NumObjects:16/integer, ObjectsBin/binary>>.
 
-%% Sends the 0x14 Match Ended Packet
 broadcast_match_end(Players, WinnerName, HighestScore) ->
     WinnerBin = list_to_binary(WinnerName),
     NameLen = byte_size(WinnerBin),
     
-    %% Protocol: [20: Byte] [NameLen: Short] [WinnerName: String] [HighestScore: Int]
     Packet = <<20:8, NameLen:16/integer, WinnerBin/binary, HighestScore:32/integer>>,
     
     maps:fold(fun(ClientPid, _Data, _Acc) ->

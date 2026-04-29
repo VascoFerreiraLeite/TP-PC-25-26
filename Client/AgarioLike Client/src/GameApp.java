@@ -7,6 +7,16 @@ public class GameApp extends PApplet {
 
     int myPlayerId = -1;
 
+    java.util.List<String> leaderboard = new java.util.ArrayList<>();
+
+    public void updateLeaderboard(java.util.List<String> newBoard) {
+        this.leaderboard = newBoard;
+    }
+
+    public void setMyPlayerId(int id) {
+        this.myPlayerId = id;
+    }
+
     class PlayerData {
         int id, score; float x, y, angle, radius;
         public PlayerData(int id, float x, float y, float angle, float mass, int score) {
@@ -60,6 +70,23 @@ public class GameApp extends PApplet {
 
     public void draw() {
         background(255, 255, 255);
+
+        if (myPlayerId == -1) {
+            fill(0);
+            textAlign(CENTER, CENTER);
+            textSize(30);
+            text("WAITING FOR PLAYERS...", width/2, height/2 - 100);
+
+            textSize(20);
+            text("--- TOP SCORES ---", width/2, height/2 - 40);
+
+            int yOffset = 0;
+            for (String entry : leaderboard) {
+                text(entry, width/2, height/2 + yOffset);
+                yOffset += 30;
+            }
+            return; // Stop drawing the game room, we aren't in it yet!
+        }
 
         for (OrbData orb : orbs.values()) {
             if (orb.type == 1) fill(0, 255, 0);
