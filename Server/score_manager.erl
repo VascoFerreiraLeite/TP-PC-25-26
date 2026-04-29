@@ -1,0 +1,36 @@
+-module(score_manager).
+-export([start_link/0, add_winner/2, get_top/0, loop/1]).
+
+start_link() ->
+    Pid = spawn_link(?MODULE, loop, [[]]),
+    register(?MODULE, Pid),
+    io:format("Score Manager started!~n"),
+    {ok, Pid}.
+
+%% Called by the Game Room when a match ends
+add_winner(Name, Score) ->
+    ?MODULE ! {add, Name, Score}.
+
+%% Called by the Matchmaker to show the lobby
+get_top() ->
+    ?MODULE ! {get, self()},
+    receive
+        {top_scores, Scores} -> Scores
+    after 1000 -> []
+    end.
+
+loop(Scores) ->
+    receive
+        {add, Name, Score} ->
+            %% Add the new winner to the list
+            List = [{Name, Score} | Scores],
+            %% Sort descending by score
+            Sorted = lists:sort(fun({_, S1}, {_, S2}) -> S1 >= S2 end, List),
+            %% Keep only the top 10
+            Top10 = lists:sublist(Sorted, 10),
+            loop(Top10);
+            
+        {get, CallerPid} ->
+            CallerPid ! {top_scores, Scores},
+            loop(Scores)
+    end.

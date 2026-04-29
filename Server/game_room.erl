@@ -73,8 +73,8 @@ loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
                             broadcast_match_end(Players, "TIE", HighestScore);
                         true ->
                             io:format("Winner is ~s with ~p captures!~n", [WinnerName, HighestScore]),
+                            score_manager:add_winner(WinnerName, HighestScore),
                             broadcast_match_end(Players, WinnerName, HighestScore)
-                            %% (Later, we will send this WinnerName to the score_manager!)
                     end;
                 [] -> ok
             end,
