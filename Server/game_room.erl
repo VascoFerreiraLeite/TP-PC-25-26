@@ -1,9 +1,9 @@
 -module(game_room).
--export([start_link/2, stop/1]).
+-export([start/2, stop/1]).
 
 
-start_link(MatchmakerPid, Players) ->
-    Pid = spawn_link(fun() -> init(MatchmakerPid, Players) end),
+start(MatchmakerPid, Players) ->
+    Pid = spawn(fun() -> init(MatchmakerPid, Players) end),
     {ok, Pid}.
 
 stop(Pid) ->
@@ -35,7 +35,7 @@ loop(MatchmakerPid, State = #{players := Players, objects := Objects}) ->
             loop(MatchmakerPid, State#{players => NewPlayers});
 
         tick ->
-            MovedPlayers = apply_dummy_physics(Players),
+            MovedPlayers = physics(Players),
             
             {PlayersAfterOrbs, FinalObjects} = check_object_collisions(MovedPlayers, Objects),
             
@@ -110,7 +110,6 @@ generate_objects(NumFood, NumPoison) ->
 
 generate_objects(0, 0, _Id, Acc) -> Acc;
 generate_objects(FoodLeft, PoisonLeft, Id, Acc) ->
-    %% Random coordinates between 20 and 980
     X = 20.0 + rand:uniform() * 1240.0,
     Y = 20.0 + rand:uniform() * 680.0,
 
@@ -145,7 +144,7 @@ update_player_inputs(State, ClientPid, Left, Right, Forward) ->
             State
     end.
 
-apply_dummy_physics(State) ->
+physics(State) ->
     maps:map(fun(_ClientPid, PlayerData = #{x := X, y := Y, vx := Vx, vy := Vy, angle := Angle, mass := Mass, inputs := Inputs}) ->
         
        
@@ -237,7 +236,6 @@ player_eat_objects(Players, Player = #{x := Px, y := Py, mass := Mass}, Objects)
 
 
 check_player_collisions(Players) ->
-    %% Convert map to list so we can recursively compare pairs
     PlayerList = maps:to_list(Players),
     resolve_pvp(PlayerList, Players).
 

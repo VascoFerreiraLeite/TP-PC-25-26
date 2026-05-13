@@ -1,7 +1,7 @@
 -module(tcp_listener).
--export([start_link/1, accept_loop/1]).
+-export([start/1, accept_loop/1]).
 
-start_link(Port) ->
+start(Port) ->
     {ok, ListenSocket} = gen_tcp:listen(Port, [{active, false}, {packet, raw}, binary, {reuseaddr, true}, {nodelay, true}]),
     io:format("Server listening on port ~p~n", [Port]),
     
@@ -12,5 +12,5 @@ accept_loop(ListenSocket) ->
     {ok, ClientSocket} = gen_tcp:accept(ListenSocket),
     io:format("New client connected!~n"),
     
-    {ok, _} = player_connection:start_link(ClientSocket),
+    {ok, _} = player_connection:start(ClientSocket),
     accept_loop(ListenSocket).

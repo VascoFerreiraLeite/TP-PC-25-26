@@ -1,8 +1,8 @@
 -module(player_connection).
--export([start_link/1, stop/1]).
+-export([start/1, stop/1]).
 
-start_link(Socket) ->
-    Pid = spawn_link(fun() -> init(Socket) end),
+start(Socket) ->
+    Pid = spawn(fun() -> init(Socket) end),
     gen_tcp:controlling_process(Socket, Pid),
     {ok, Pid}.
 

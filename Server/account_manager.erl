@@ -1,14 +1,12 @@
 -module(account_manager).
--export([start_link/0, register/3, cancel/3, authenticate/3, stop/1]).
+-export([start/0, register/3, cancel/3, authenticate/3, stop/1]).
 
-start_link() ->
-    Pid = spawn_link(fun() -> init() end),
+start() ->
+    Pid = spawn(fun() -> init() end),
     {ok, Pid}.
-
 
 register(Pid, Username, Password) ->
     call(Pid, {register, Username, Password}).
-
 
 cancel(Pid, Username, Password) ->
     call(Pid, {cancel, Username, Password}).
@@ -20,7 +18,6 @@ stop(Pid) ->
     Pid ! stop,
     ok.
 
-
 call(Pid, Message) ->
     Ref = make_ref(),
     Pid ! {Message, self(), Ref},
@@ -30,10 +27,8 @@ call(Pid, Message) ->
         {error, timeout}
     end.
 
-
 init() ->
     loop(#{}).
-
 
 loop(Accounts) ->
     receive

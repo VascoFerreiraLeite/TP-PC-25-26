@@ -1,8 +1,8 @@
 -module(main_supervisor).
--export([start_link/0, init/0]).
+-export([start/0, init/0]).
 
-start_link() ->
-    Pid = spawn_link(?MODULE, init, []),
+start() ->
+    Pid = spawn(?MODULE, init, []),
     {ok, Pid}.
 
 init() ->
@@ -10,19 +10,19 @@ init() ->
     
     io:format("Starting Game Server Supervisor...~n"),
     
-    {ok, AccountPid} = account_manager:start_link(),
-    {ok, MatchmakerPid} = matchmaker:start_link(),
-    {ok, ScoreManagerPid} = score_manager:start_link(),
-    {ok, ListenerPid} = tcp_listener:start_link(8080),
+    {ok, AccountPid} = account_manager:start(),
+    {ok, MatchmakerPid} = matchmaker:start(),
+    {ok, ScoreManagerPid} = score_manager:start(),
+    {ok, ListenerPid} = tcp_listener:start(8080),
 
     register(account_manager, AccountPid),
     register(matchmaker, MatchmakerPid),
 
     State = #{
-        AccountPid    => {account_manager, start_link, []},
-        ScoreManagerPid => {score_manager, start_link, []},
-        MatchmakerPid => {matchmaker, start_link, []},
-        ListenerPid   => {tcp_listener, start_link, [8080]}
+        AccountPid    => {account_manager, start, []},
+        ScoreManagerPid => {score_manager, start, []},
+        MatchmakerPid => {matchmaker, start, []},
+        ListenerPid   => {tcp_listener, start, [8080]}
     },
 
     io:format("All services started successfully!~n"),

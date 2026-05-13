@@ -1,9 +1,9 @@
 -module(matchmaker).
--export([start_link/0, join/3, leave/1, match_ended/1, stop/1]).
+-export([start/0, join/3, leave/1, match_ended/1, stop/1]).
 
 
-start_link() ->
-    Pid = spawn_link(fun() -> init() end),
+start() ->
+    Pid = spawn(fun() -> init() end),
     {ok, Pid}.
 
 
@@ -27,8 +27,6 @@ match_ended(Pid) ->
 stop(Pid) ->
     Pid ! stop,
     ok.
-
-
 
 init() ->
     erlang:send_after(2000, self(), broadcast_leaderboard),
@@ -117,7 +115,7 @@ start_game_room(Players) ->
     PlayersWithIds = assign_ids(1, Players),
     io:format(">>> SPANWING GAME ROOM WITH PLAYERS: ~p~n", [PlayersWithIds]),
     
-    {ok, _RoomPid} = game_room:start_link(self(), PlayersWithIds),
+    {ok, _RoomPid} = game_room:start(self(), PlayersWithIds),
     ok.
 
 assign_ids(_Id, []) -> 

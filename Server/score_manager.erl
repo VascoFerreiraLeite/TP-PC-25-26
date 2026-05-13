@@ -1,8 +1,8 @@
 -module(score_manager).
--export([start_link/0, add_winner/2, get_top/0, loop/1]).
+-export([start/0, add_winner/2, get_top/0, loop/1]).
 
-start_link() ->
-    Pid = spawn_link(?MODULE, loop, [[]]),
+start() ->
+    Pid = spawn(?MODULE, loop, [[]]),
     register(?MODULE, Pid),
     io:format("Score Manager started!~n"),
     {ok, Pid}.
