@@ -47,6 +47,10 @@ loop(State = #{socket := Socket, game_room := GameRoomPid}) ->
 
         stop ->
             gen_tcp:close(Socket),
+            Username = maps:get(username, State),
+            if Username =/= undefined -> account_manager:logout(account_manager, Username);
+                true -> ok
+            end,
             ok;
 
         _Unknown ->

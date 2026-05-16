@@ -6,6 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="90c40200-5f6c-40fd-87b1-9f05ace3af15" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameApp.class" beforeDir="false" afterPath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameApp.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameApp.java" beforeDir="false" afterPath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameApp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/Client/AgarioLike Client/src/GameClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/game_room.erl" beforeDir="false" afterPath="$PROJECT_DIR$/Server/game_room.erl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/player_connection.erl" beforeDir="false" afterPath="$PROJECT_DIR$/Server/player_connection.erl" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,19 +30,44 @@
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;Application.GameApp.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/gustavo/Documentos/GitHub/TP-PC-25-26&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/gustavo/Documentos/GitHub/TP-PC-25-26/Client/AgarioLike Client/lib/core.jar&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Libraries&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RunManager">
+    <configuration name="GameApp" type="Application" factoryName="Application" nameIsGenerated="true">
+      <option name="ALTERNATIVE_JRE_PATH" value="$PROJECT_DIR$/Client/AgarioLike Client/lib" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="MAIN_CLASS_NAME" value="GameApp" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="TP-PC-25-26" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="TP-PC-25-26" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -58,6 +88,13 @@
       <workItem from="1776181762949" duration="1506000" />
       <workItem from="1776350951301" duration="531000" />
       <workItem from="1776351488781" duration="5343000" />
+      <workItem from="1776626586810" duration="714000" />
+      <workItem from="1776723344192" duration="599000" />
+      <workItem from="1776770715664" duration="601000" />
+      <workItem from="1776848319003" duration="38000" />
+      <workItem from="1777466046783" duration="1688000" />
+      <workItem from="1778170048823" duration="42000" />
+      <workItem from="1778947233764" duration="7761000" />
     </task>
     <servers />
   </component>

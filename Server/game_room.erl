@@ -266,7 +266,7 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
             if
                 (M1 > M2) andalso (Dist + R2 =< R1) ->
                     
-                    NewP1 = P1Data#{mass => M1 + (M2 / 4.0), score => S1 + S2 + 1},
+                    NewP1 = P1Data#{mass => M1 + (M2 / 4.0), score => S1 + 1},
                     
                     NewP2 = P2Data#{
                         x => 20.0 + rand:uniform() * 1240.0,
@@ -278,7 +278,7 @@ try_eat_others(P1Pid, P1Data, [{P2Pid, _} | Rest], Players) ->
                     try_eat_others(P1Pid, NewP1, Rest, NewPlayers);
 
                 (M2 > M1) andalso (Dist + R1 =< R2) ->
-                    NewP2 = P2Data#{mass => M2 + (M1 / 4.0), score => S2 + S1 + 1},
+                    NewP2 = P2Data#{mass => M2 + (M1 / 4.0), score => S2 + 1},
                     
                     NewP1 = P1Data#{
                         x => 20.0 + rand:uniform() * 1240.0,

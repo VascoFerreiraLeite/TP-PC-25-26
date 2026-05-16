@@ -75,6 +75,10 @@ public class GameClient {
 
                     String message = new String(msgBytes, StandardCharsets.UTF_8);
                     System.out.println("[SERVER] " + (status == 1 ? "SUCCESS: " : "ERROR: ") + message);
+
+                    // Injeção de resposta bloqueia a variável global momentaneamente para assegurar atomicidade
+                    app.setAuthStatus(status == 1, message);
+
                 } else if (packetId == 17) {
                     // 0x11 Leaderboard Tick
                     byte numEntries = in.readByte();
@@ -130,23 +134,14 @@ public class GameClient {
                     app.updateObjects(newOrbs);
 
                 } else if (packetId == 20) {
-                    // 0x14 Match Ended Packet
                     short nameLen = in.readShort();
                     byte[] nameBytes = new byte[nameLen];
                     in.readFully(nameBytes);
                     String winnerName = new String(nameBytes, StandardCharsets.UTF_8);
-                    int highestScore = in.readInt();
+                    int score = in.readInt();
 
-                    System.out.println("\n==================================");
-                    System.out.println("          MATCH OVER!             ");
-                    if (winnerName.equals("TIE")) {
-                        System.out.println("The match ended in a TIE with " + highestScore + " captures!");
-                        System.out.println("This match will be ignored for the leaderboard.");
-                    } else {
-                        System.out.println("WINNER: " + winnerName + "!");
-                        System.out.println("Total Captures: " + highestScore);
-                    }
-                    System.out.println("==================================\n");
+                    // Chama a função do monitor para mudar o ecrã
+                    app.setMatchEnd(winnerName, score);
 
                 } else {
                     System.out.println("Unknown packet ID: " + packetId);
