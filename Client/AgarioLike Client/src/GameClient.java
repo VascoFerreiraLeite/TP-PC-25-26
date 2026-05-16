@@ -115,11 +115,11 @@ public class GameClient {
                         float mass = in.readFloat();
                         int score = in.readInt();
 
-                        app.updatePlayer(id, x, y, angle, mass, score);
+                        app.gameState.updatePlayer(id, x, y, angle, mass, score);
                     }
 
                     short numObjects = in.readShort();
-                    ConcurrentHashMap<Integer, GameApp.OrbData> newOrbs = new ConcurrentHashMap<>();
+                    java.util.Map<Integer, GameApp.OrbData> newOrbs = new java.util.HashMap<>();
 
                     for (int i = 0; i < numObjects; i++) {
                         int id = in.readInt();
@@ -131,7 +131,7 @@ public class GameClient {
                         newOrbs.put(id, app.new OrbData(id, x, y, radius, type));
                     }
 
-                    app.updateObjects(newOrbs);
+                    app.gameState.updateObjects(newOrbs);
 
                 } else if (packetId == 20) {
                     short nameLen = in.readShort();

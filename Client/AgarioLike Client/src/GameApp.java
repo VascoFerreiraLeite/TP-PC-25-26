@@ -2,6 +2,9 @@ import processing.core.PApplet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.Map;
+import java.util.HashMap;
 
 public class GameApp extends PApplet {
 
@@ -70,18 +73,61 @@ public class GameApp extends PApplet {
     boolean isConnected = false;
     int leftPressed = 0, rightPressed = 0, forwardPressed = 0;
 
-    ConcurrentHashMap<Integer, OrbData> orbs = new ConcurrentHashMap<>();
-    ConcurrentHashMap<Integer, PlayerData> players = new ConcurrentHashMap<>();
+    public class GameStateMonitor {
+        private Map<Integer, OrbData> orbs = new HashMap<>();
+        private Map<Integer, PlayerData> players = new HashMap<>();
+        private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
 
-    // Funções chamadas pelo GameClient para atualizar dados
-    public synchronized void updateObjects(ConcurrentHashMap<Integer, OrbData> newOrbs) {
-        this.orbs = newOrbs;
+
+        public void updateObjects(Map<Integer, OrbData> newOrbs) {
+            rwLock.writeLock().lock();
+            try {
+                this.orbs = new HashMap<>(newOrbs);
+            } finally {
+                rwLock.writeLock().unlock();
+            }
+        }
+
+        public void updatePlayer(int id, float x, float y, float angle, float mass, int score) {
+            rwLock.writeLock().lock();
+            try {
+                players.put(id, new PlayerData(id, x, y, angle, mass, score));
+            } finally {
+                rwLock.writeLock().unlock();
+            }
+        }
+
+        public void clear() {
+            rwLock.writeLock().lock();
+            try {
+                orbs.clear();
+                players.clear();
+            } finally {
+                rwLock.writeLock().unlock();
+            }
+        }
+
+        public List<OrbData> getOrbs() {
+            rwLock.readLock().lock();
+            try {
+                return new ArrayList<>(orbs.values());
+            } finally {
+                rwLock.readLock().unlock();
+            }
+        }
+
+        public List<PlayerData> getPlayers() {
+            rwLock.readLock().lock();
+            try {
+                return new ArrayList<>(players.values());
+            } finally {
+                rwLock.readLock().unlock();
+            }
+        }
     }
 
-    public void updatePlayer(int id, float x, float y, float angle, float mass, int score) {
-        // ConcurrentHashMap já é thread-safe para puts
-        players.put(id, new PlayerData(id, x, y, angle, mass, score));
-    }
+    // Instanciar o Monitor para ser usado
+    public GameStateMonitor gameState = new GameStateMonitor();
 
     public void settings() {
         size(1280, 720);
@@ -157,7 +203,7 @@ public class GameApp extends PApplet {
         }
 
         // Desenhar Objetos
-        for (OrbData orb : orbs.values()) {
+        for (OrbData orb : gameState.getOrbs()) {
             if (orb.type == 1) fill(0, 255, 0);
             else fill(255, 0, 0);
 
@@ -167,7 +213,8 @@ public class GameApp extends PApplet {
 
         // Desenhar Jogadores
         // Obter os jogadores e ordená-los pelo tamanho (do menor para o maior)
-        List<PlayerData> sortedPlayers = new ArrayList<>(players.values());
+        // Desenhar Jogadores
+        List<PlayerData> sortedPlayers = gameState.getPlayers();
         sortedPlayers.sort((p1, p2) -> Float.compare(p1.radius, p2.radius));
 
         for (PlayerData p : sortedPlayers) {
@@ -265,8 +312,7 @@ public class GameApp extends PApplet {
             if (mouseX > width / 2 - 100 && mouseX < width / 2 + 100 && mouseY > height / 2 + 50 && mouseY < height / 2 + 100) {
                 // Reset ao estado local
                 this.myPlayerId = -1;
-                this.orbs.clear();
-                this.players.clear();
+                this.gameState.clear();
                 this.currentScreen = 0;
                 this.isConnected = false;
                 connectAndSend(2);
