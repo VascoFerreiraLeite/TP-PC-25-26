@@ -9,14 +9,6 @@ public class GameApp extends PApplet {
 
     java.util.List<String> leaderboard = new java.util.ArrayList<>();
 
-    int login = 0; //0 - login, 1 - jogo
-
-    String inputUser = "";
-    
-    String inputPass = "";
-    
-    boolean typingUser = true; 
-
     public void updateLeaderboard(java.util.List<String> newBoard) {
         this.leaderboard = newBoard;
     }
@@ -79,11 +71,6 @@ public class GameApp extends PApplet {
     public void draw() {
         background(255, 255, 255);
 
-        if (login == 0) {
-            drawLoginScreen();
-            return;
-        }
-
         if (myPlayerId == -1) {
             fill(0);
             textAlign(CENTER, CENTER);
@@ -131,27 +118,9 @@ public class GameApp extends PApplet {
 
             popMatrix();
         }
-
-
     }
 
     public void keyPressed() {
-        if (login == 0) {
-        if (key == TAB) {
-            typingUser = !typingUser; 
-        } else if (key == BACKSPACE) {
-            if (typingUser && inputUser.length() > 0) {
-                inputUser = inputUser.substring(0, inputUser.length() - 1);
-            } else if (!typingUser && inputPass.length() > 0) {
-                inputPass = inputPass.substring(0, inputPass.length() - 1);
-            }
-        } else if (key != CODED && key != ENTER && key != RETURN) {
-            if (typingUser) inputUser += key;
-            else inputPass += key;
-        }
-        return;
-    }
-        
         boolean changed = false;
         if (keyCode == LEFT && leftPressed == 0)  { leftPressed = 1; changed = true; }
         if (keyCode == RIGHT && rightPressed == 0) { rightPressed = 1; changed = true; }
@@ -167,50 +136,5 @@ public class GameApp extends PApplet {
         if (keyCode == UP)    { forwardPressed = 0; changed = true; }
 
         if (changed) client.sendMovement(leftPressed, rightPressed, forwardPressed);
-    }
-
-    public void drawLoginScreen() {
-        fill(0);
-        textAlign(CENTER, CENTER);
-        
-        textSize(30);
-        text("BEM-VINDO AO AGARIO-LIKE", width/2, height/2 - 150);
-
-        textSize(20);
-        text("Username: " + inputUser + (typingUser ? "_" : ""), width/2, height/2 - 80);
-        text("Password: " + inputPass + (!typingUser ? "_" : ""), width/2, height/2 - 40);
-
-        textSize(16);
-        fill(100);
-        text("Pressione TAB para alternar entre Username e Password", width/2, height/2 + 20);
-
-        fill(200); rect(width/2 - 160, height/2 + 60, 100, 40);
-        fill(0); text("LOGIN", width/2 - 110, height/2 + 80);
-
-        fill(200); rect(width/2 - 40, height/2 + 60, 100, 40);
-        fill(0); text("REGISTAR", width/2 + 10, height/2 + 80);
-
-        fill(200); rect(width/2 + 80, height/2 + 60, 100, 40);
-        fill(0); text("CANCELAR", width/2 + 130, height/2 + 80);
-    }
-
-    public void mousePressed() {
-        if (uiState == 0) {
-            int my = height/2 + 60;
-            if (mouseY >= my && mouseY <= my + 40) {
-                
-                // Clicou no botão LOGIN
-                if (mouseX >= width/2 - 160 && mouseX <= width/2 - 60) {
-                    client.sendAuthAction(2, inputUser, inputPass);
-                    uiState = 1; 
-                } 
-                else if (mouseX >= width/2 - 40 && mouseX <= width/2 + 60) {
-                    client.sendAuthAction(1, inputUser, inputPass);
-                } 
-                else if (mouseX >= width/2 + 80 && mouseX <= width/2 + 180) {
-                    client.sendAuthAction(3, inputUser, inputPass);
-                }
-            }
-        }
     }
 }
