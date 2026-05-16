@@ -53,7 +53,7 @@ loop(State) ->
         {leave, ClientPid} ->
             Queue = maps:get(queue, State),
             NewQueue = lists:filter(fun({_U, Pid}) -> Pid =/= ClientPid end, Queue),
-            NewState = State#{queue => NewQueue, active => length(NewQueue)},
+            NewState = State#{queue => NewQueue}, 
             io:format("Player left queue. ~p remaining.~n", [length(NewQueue)]),
             loop(NewState);    
 
