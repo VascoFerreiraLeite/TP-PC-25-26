@@ -15,12 +15,12 @@ public class GameApp extends PApplet {
     private int endScreenScore = 0;
     private boolean iWon = false;
 
-    // Função chamada quando o pacote de fim de jogo chega
+    // função chamada quando o pacote de fim de jogo chega
     public synchronized void setMatchEnd(String winner, int score) {
         this.endScreenWinner = winner;
         this.endScreenScore = score;
         this.iWon = usernameInput.equals(winner);
-        this.currentScreen = 2; // 2 = Novo Ecrã de Fim de Jogo!
+        this.currentScreen = 2;
     }
 
     private int myPlayerId = -1;
@@ -48,9 +48,7 @@ public class GameApp extends PApplet {
         return new ArrayList<>(this.leaderboard);
     }
 
-    // ==========================================
-    // CLASSES DE DADOS (Faltavam aqui)
-    // ==========================================
+
     public class PlayerData {
         int id, score; float x, y, angle, radius;
         public PlayerData(int id, float x, float y, float angle, float mass, int score) {
@@ -69,7 +67,7 @@ public class GameApp extends PApplet {
     String usernameInput = "";
     String passwordInput = "";
     String ipInput = "localhost";
-    int activeField = 1; // 0 = IP, 1 = User, 2 = Pass
+    int activeField = 1;
     boolean isConnected = false;
     int leftPressed = 0, rightPressed = 0, forwardPressed = 0;
 
@@ -126,7 +124,7 @@ public class GameApp extends PApplet {
         }
     }
 
-    // Instanciar o Monitor para ser usado
+
     public GameStateMonitor gameState = new GameStateMonitor();
 
     public void settings() {
@@ -202,7 +200,7 @@ public class GameApp extends PApplet {
             return;
         }
 
-        // Desenhar Objetos
+
         for (OrbData orb : gameState.getOrbs()) {
             if (orb.type == 1) fill(0, 255, 0);
             else fill(255, 0, 0);
@@ -211,9 +209,7 @@ public class GameApp extends PApplet {
             circle(orb.x, orb.y, orb.radius * 2);
         }
 
-        // Desenhar Jogadores
-        // Obter os jogadores e ordená-los pelo tamanho (do menor para o maior)
-        // Desenhar Jogadores
+
         List<PlayerData> sortedPlayers = gameState.getPlayers();
         sortedPlayers.sort((p1, p2) -> Float.compare(p1.radius, p2.radius));
 
@@ -260,7 +256,7 @@ public class GameApp extends PApplet {
             text("Vencedor: " + endScreenWinner + " com " + endScreenScore + " capturas.", width/2, height/2 - 20);
         }
 
-        // Desenhar Botão Jogar Novamente
+
         fill(200); stroke(0); rect(width/2 - 100, height/2 + 50, 200, 50);
         fill(0); textSize(20); text("Voltar à Fila", width/2, height/2 + 75);
     }
@@ -272,7 +268,7 @@ public class GameApp extends PApplet {
                 else if (activeField == 1 && usernameInput.length() > 0) usernameInput = usernameInput.substring(0, usernameInput.length() - 1);
                 else if (activeField == 2 && passwordInput.length() > 0) passwordInput = passwordInput.substring(0, passwordInput.length() - 1);
             } else if (key == TAB) {
-                activeField = (activeField + 1) % 3; // Roda entre IP, User e Pass
+                activeField = (activeField + 1) % 3;
             } else if (key >= 32 && key <= 126) {
                 if (activeField == 0) ipInput += key;
                 else if (activeField == 1) usernameInput += key;
@@ -303,14 +299,13 @@ public class GameApp extends PApplet {
             else if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > height/2 - 80 && mouseY < height/2 - 40) activeField = 1;
             else if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > height/2 - 20 && mouseY < height/2 + 20) activeField = 2;
 
-            else if (mouseX > width/2 - 150 && mouseX < width/2 - 60 && mouseY > height/2 + 50 && mouseY < height/2 + 90) connectAndSend(2); // Login
-            else if (mouseX > width/2 - 45 && mouseX < width/2 + 45 && mouseY > height/2 + 50 && mouseY < height/2 + 90) connectAndSend(1); // Registar
-            else if (mouseX > width/2 + 60 && mouseX < width/2 + 170 && mouseY > height/2 + 50 && mouseY < height/2 + 90) connectAndSend(3); // Cancelar
+            else if (mouseX > width/2 - 150 && mouseX < width/2 - 60 && mouseY > height/2 + 50 && mouseY < height/2 + 90) connectAndSend(2);
+            else if (mouseX > width/2 - 45 && mouseX < width/2 + 45 && mouseY > height/2 + 50 && mouseY < height/2 + 90) connectAndSend(1);
+            else if (mouseX > width/2 + 60 && mouseX < width/2 + 170 && mouseY > height/2 + 50 && mouseY < height/2 + 90) connectAndSend(3);
         }
         else if (getCurrentScreen() == 2) {
-            // Clicou no botão "Voltar à Fila"
             if (mouseX > width / 2 - 100 && mouseX < width / 2 + 100 && mouseY > height / 2 + 50 && mouseY < height / 2 + 100) {
-                // Reset ao estado local
+
                 this.myPlayerId = -1;
                 this.gameState.clear();
                 this.currentScreen = 0;
