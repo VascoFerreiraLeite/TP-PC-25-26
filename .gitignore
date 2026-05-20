@@ -7,3 +7,8 @@ Server/player_connection.beam
 Server/score_manager.beam
 Server/server.beam
 Server/tcp_listener.beam
+Server/game_room.beam
+Server/game_room.beam
+Server/matchmaker.beam
+Server/player_connection.beam
+Server/score_manager.beam
