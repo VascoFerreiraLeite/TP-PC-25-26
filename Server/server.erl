@@ -11,7 +11,7 @@ start() ->
 
     register(account_manager, AccountPid),
     
-    catch register(matchmaker, MatchmakerPid),
+    register(matchmaker, MatchmakerPid),
 
     io:format("All services started successfully!~n"),
 
