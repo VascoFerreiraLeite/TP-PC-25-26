@@ -5,7 +5,7 @@ start(Port) ->
     {ok, ListenSocket} = gen_tcp:listen(Port, [{active, false}, {packet, raw}, binary, {reuseaddr, true}, {nodelay, true}]),
     io:format("Server listening on port ~p~n", [Port]),
     
-    Pid = spawn_link(?MODULE, accept_loop, [ListenSocket]),
+    Pid = spawn(?MODULE, accept_loop, [ListenSocket]),
     {ok, Pid}.
 
 accept_loop(ListenSocket) ->
